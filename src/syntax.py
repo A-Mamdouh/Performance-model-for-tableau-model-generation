@@ -44,17 +44,17 @@ class Term(ABC):
     def __init__(self, sort: Sort):
         self.sort = sort
 
-    @property
     @abstractmethod
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         pass
 
     def __str__(self) -> str:
-        return self._str
+        return self._get_str()
 
     def __eq__(self, obj) -> bool:
-        if isinstance(self, type(obj)):
-            return self._str == obj._str
+        if isinstance(obj, type(self)):
+            if self.sort == obj.sort:
+                return self._get_str() == obj._get_str()
         return False
 
     def __hash__(self) -> int:
@@ -78,8 +78,7 @@ class Constant(Term):
         else:
             self.name = name
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return self.name
 
 
@@ -101,25 +100,23 @@ class Variable(Term):
         else:
             self.name = name
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return self.name
 
 
 class Formula(ABC):
     """Formula productions"""
 
-    @property
     @abstractmethod
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         pass
 
     def __str__(self) -> str:
-        return self._str
+        return self._get_str()
 
     def __eq__(self, obj) -> bool:
-        if isinstance(self, type(obj)):
-            return self._str == obj._str
+        if isinstance(obj, type(self)):
+            return self._get_str() == obj._get_str()
         return False
 
     def __hash__(self) -> int:
@@ -146,12 +143,17 @@ class AppliedPredicate(Formula):
     def __post_init__(self) -> None:
         assert self.predicate.arity == len(self.args)
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         if self.predicate.arity == 0:
             return self.predicate.name
         args_string = ",".join(str(x) for x in self.args)
         return f"{self.predicate.name}({args_string})"
+
+    def __eq__(self, o2: object) -> bool:
+        if isinstance(o2, AppliedPredicate):
+            if self.predicate == o2.predicate:
+                return all(a1 == a2 for a1, a2 in zip(self.args, o2.args))
+        return False
 
 
 class LogicalConstant(AppliedPredicate):
@@ -165,18 +167,26 @@ class And(Formula):
     left: Formula
     right: Formula
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return f"({self.left} & {self.right})"
+
+    def __eq__(self, o2: object) -> bool:
+        if isinstance(o2, And):
+            return self.left == o2.left and self.right == o2.right
+        return False
 
 
 @dataclass
 class Not(Formula):
     formula: Formula
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return f"-{self.formula}"
+
+    def __eq__(self, o2: object) -> bool:
+        if isinstance(o2, Not):
+            return self.formula == o2.formula
+        return False
 
 
 class Or(Not):
@@ -185,8 +195,7 @@ class Or(Not):
         self.left = left
         self.right = right
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return f"({self.left} | {self.right})"
 
 
@@ -195,9 +204,8 @@ class Implies(Or):
         super().__init__(Not(pre), post)
         self.pre = pre
         self.post = post
-    
-    @property
-    def _str(self) -> str:
+
+    def _get_str(self) -> str:
         return f"({self.pre} -> {self.post})"
 
 
@@ -213,32 +221,38 @@ class Quantifier:
         return self.name
 
 
-PartialFormula = Callable[[Term], Union[Formula, "PartialFormula"]]
+# PartialFormula = Callable[[Term], Union[Formula, "PartialFormula"]]
 
 
-# class PartialFormula:
-#     def __init__(
-#         self, callable: Callable[[Term], Union[Formula, "PartialFormula"]]
-#     ) -> None:
-#         self.callable = callable
+class PartialFormula:
+    def __init__(
+        self, callable: Callable[[Term], Union[Formula, "PartialFormula"]]
+    ) -> None:
+        self.callable = callable
 
-#     def __call__(self, term: Term) -> Union[Formula, "PartialFormula"]:
-#         out = self.callable(term)
-#         if isinstance(out, Formula):
-#             return out
-#         else:
-#             return PartialFormula(out)
+    def __call__(self, term: Term) -> Union[Formula, "PartialFormula"]:
+        out = self.callable(term)
+        if isinstance(out, Formula):
+            return out
+        else:
+            return PartialFormula(out)
 
-#     def _make_str(self, x: int = 0) -> str:
-#         v = Variable(f"x{x}")
-#         out = self(v)
-#         if isinstance(out, Formula):
-#             return f"\\{v}.{out}"
-#         ret_str = f"\\{v}.{out._make_str(x+1)}"
-#         return ret_str
+    def _make_str(self, x: int = 0) -> str:
+        v = Variable(f"x{x}")
+        out = self(v)
+        if isinstance(out, Formula):
+            return f"\\{v}.{out}"
+        ret_str = f"\\{v}.{out._make_str(x+1)}"
+        return ret_str
 
-#     def __str__(self) -> str:
-#         return self._make_str()
+    def __str__(self) -> str:
+        return self._make_str()
+
+    def __eq__(self, o2: object) -> str:
+        if isinstance(o2, PartialFormula):
+            v = Variable(Term.Sort.EVENT, "temp")
+            return self(v) == o2(v)
+        return False
 
 
 @dataclass
@@ -252,6 +266,8 @@ class QuantifiedFormula(Formula):
         assert (self.sort is None) ^ (self.variable is None)
         if self.variable is None:
             self.variable = Variable(self.sort)
+        if not isinstance(self.partial_formula, PartialFormula):
+            self.partial_formula = PartialFormula(self.partial_formula)
         self.sort = self.variable.sort
 
     @property
@@ -259,9 +275,16 @@ class QuantifiedFormula(Formula):
         """Returns the partial formula after applying the quantifying term"""
         return self.partial_formula(self.variable)
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return f"{self.quantifier}_{self.variable}.{self.applied}"
+
+    def __eq__(self, o2: object) -> bool:
+        if isinstance(o2, QuantifiedFormula):
+            if self.quantifier == o2.quantifier and self.sort == o2.sort:
+                return self.partial_formula(self.variable) == o2.partial_formula(
+                    self.variable
+                )
+        return False
 
 
 @dataclass
@@ -275,6 +298,10 @@ class FocusQuantifiedFormula(Formula):
         assert (self.variable is None) ^ (self.sort is None)
         if self.variable is None:
             self.variable = Variable(self.sort)
+        if not isinstance(self.unfocused_partial, PartialFormula):
+            self.unfocused_partial = PartialFormula(self.unfocused_partial)
+        if not isinstance(self.focused_partial, PartialFormula):
+            self.focused_partial = PartialFormula(self.focused_partial)
         self.sort = self.variable.sort
 
     @property
@@ -285,30 +312,46 @@ class FocusQuantifiedFormula(Formula):
     def focused(self) -> Union[Formula, PartialFormula]:
         return self.focused_partial(self.variable)
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return f"{self.quantifier}_{self.variable}:{self.unfocused}.{self.focused}"
+
+    def __eq__(self, o2: object) -> bool:
+        if isinstance(o2, FocusQuantifiedFormula):
+            if self.quantifier == o2.quantifier and self.sort == o2.sort:
+                return self.focused_partial(self.variable) == o2.focused_partial(
+                    self.variable
+                ) and self.unfocused_partial(self.variable) == o2.focused_partial(
+                    self.variable
+                )
+        return False
 
 
 class Forall(QuantifiedFormula):
     _quantifier = Quantifier("A")
 
     def __init__(
-        self, partial_formula: PartialFormula, sort: Optional[Term.Sort] = None, variable: Optional[Variable] = None
+        self,
+        partial_formula: PartialFormula,
+        sort: Optional[Term.Sort] = None,
+        variable: Optional[Variable] = None,
     ) -> None:
         super().__init__(self._quantifier, partial_formula, variable, sort)
 
 
 class Exists(Not):
-    def __init__(self, partial_formula: PartialFormula, sort: Optional[Term.Sort] = None, variable: Optional[Variable]=None):
+    def __init__(
+        self,
+        partial_formula: PartialFormula,
+        sort: Optional[Term.Sort] = None,
+        variable: Optional[Variable] = None,
+    ):
         f = Forall(lambda x: Not(partial_formula(x)), sort, variable)
         self.variable = f.variable
         self.sort = f.sort
         self.partial_formula = partial_formula
         super().__init__(f)
-    
-    @property
-    def _str(self) -> str:
+
+    def _get_str(self) -> str:
         return f"E_{self.formula.variable}.{self.formula.applied.formula}"
 
 
@@ -330,17 +373,25 @@ class ForallF(FocusQuantifiedFormula):
             focused_partial_formula,
         )
 
+
 class ExistsF(Not):
-    def __init__(self, unfocused_partial: PartialFormula, focused_partial: PartialFormula, sort: Optional[Term.Sort], variable: Optional[Variable] = None):
-        f = ForallF(unfocused_partial, lambda x: Not(focused_partial(x)), sort, variable)
+    def __init__(
+        self,
+        unfocused_partial: PartialFormula,
+        focused_partial: PartialFormula,
+        sort: Optional[Term.Sort],
+        variable: Optional[Variable] = None,
+    ):
+        f = ForallF(
+            unfocused_partial, lambda x: Not(focused_partial(x)), sort, variable
+        )
         self.unfocused_partial = f.unfocused
         self.focused_partial = focused_partial
         self.variable = f.variable
         self.sort = f.sort
         super().__init__(f)
-    
-    @property
-    def _str(self) -> str:
+
+    def _get_str(self) -> str:
         return f"E_{self.formula.variable}:{self.formula.unfocused}.{self.formula.focused.formula}"
 
 
@@ -353,9 +404,10 @@ def is_literal(f: Formula) -> bool:
 
 class Agent(AppliedPredicate):
     _agent: Predicate = Predicate("ag", 2)
+
     def __init__(self, event: Term, agent: Term):
         super().__init__(Agent._agent, [event, agent])
-    
+
     @property
     def event(self) -> Term:
         return self.args[0]
@@ -367,34 +419,32 @@ class Agent(AppliedPredicate):
 
 class Eq(AppliedPredicate):
     _eq: Predicate = Predicate("eq", 2)
+
     def __init__(self, left: Term, right: Term):
         super().__init__(Eq._eq, [left, right])
         self.left = left
         self.right = right
 
-    @property
-    def _str(self) -> str:
+    def _get_str(self) -> str:
         return f"{self.left} = {self.right}"
 
 
 class Type_(AppliedPredicate):
     _type_: Predicate = Predicate("ty", 2)
+
     def __init__(self, event: Term, type_: Term):
         super().__init__(Type_._type_, [event, type_])
 
 
 if __name__ == "__main__":
     p = Predicate("p", 4)
-    f = Forall(lambda x:
-            Forall(lambda y:
-                   Implies(
-                       Eq(x, y),
-                       Or(
-                           Eq(y, x),
-                           Exists(lambda z:
-                                  p(x, y, z, x), Term.Sort.EVENT)
-                        )
-                    ),
-            Term.Sort.EVENT),
-        Term.Sort.EVENT)
+    f = Forall(
+        lambda x: Forall(
+            lambda y: Implies(
+                Eq(x, y), Or(Eq(y, x), Exists(lambda z: p(x, y, z, x), Term.Sort.EVENT))
+            ),
+            Term.Sort.EVENT,
+        ),
+        Term.Sort.EVENT,
+    )
     print(f)

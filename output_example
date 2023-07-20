@@ -1,0 +1,81 @@
+model: eat = eat john = john ag(_C0,john) ty(_C0,eat)
+eat = eat
+john = john
+--eat = eat
+--john = john
+(ty(_C0,eat) -> eat = eat)
+(ag(_C0,john) -> john = john)
+A__V17.(ty(_C0,_V17) -> eat = _V17)
+A__V18.(ag(_C0,_V18) -> john = _V18)
+--A__V17.(ty(_C0,_V17) -> eat = _V17)
+--A__V18.(ag(_C0,_V18) -> john = _V18)
+ag(_C0,john)
+ty(_C0,eat)
+(ty(_C0,eat) -> A__V17.(ty(_C0,_V17) -> eat = _V17))
+(ag(_C0,john) -> A__V18.(ag(_C0,_V18) -> john = _V18))
+(ag(_C0,john) & ty(_C0,eat))
+A__V11.(ty(_C0,_V11) -> A__V147.(ty(_C0,_V147) -> _V11 = _V147))
+A__V12.(ag(_C0,_V12) -> A__V148.(ag(_C0,_V148) -> _V12 = _V148))
+--(ag(_C0,john) & ty(_C0,eat))
+E__V2.(ag(_V2,john) & ty(_V2,eat))
+A__V0.A__V149.(ty(_V0,_V149) -> A__V150.(ty(_V0,_V150) -> _V149 = _V150))
+A__V1.A__V151.(ag(_V1,_V151) -> A__V152.(ag(_V1,_V152) -> _V151 = _V152))
+Entities:
+_C0
+john
+eat
+------------------------------
+model: bob = bob -ag(_C1,john) ag(_C1,bob) ty(_C1,eat) -ag(_C0,bob) eat = eat john = john ag(_C0,john) ty(_C0,eat)
+bob = bob
+--bob = bob
+(ty(_C1,eat) -> eat = eat)
+(ag(_C1,bob) -> bob = bob)
+(ag(_C1,john) -> bob = john)
+A__V266.(ty(_C1,_V266) -> eat = _V266)
+A__V267.(ag(_C1,_V267) -> bob = _V267)
+-ag(_C1,john)
+--A__V266.(ty(_C1,_V266) -> eat = _V266)
+--A__V267.(ag(_C1,_V267) -> bob = _V267)
+---ag(_C1,john)
+ag(_C1,bob)
+ty(_C1,eat)
+(ty(_C1,eat) -> A__V266.(ty(_C1,_V266) -> eat = _V266))
+(ag(_C1,bob) -> A__V267.(ag(_C1,_V267) -> bob = _V267))
+(ag(_C1,john) -> A__V268.(ag(_C1,_V268) -> john = _V268))
+(ag(_C1,bob) & ty(_C1,eat))
+-ag(_C0,bob)
+A__V242.(ty(_C1,_V242) -> A__V948.(ty(_C1,_V948) -> _V242 = _V948))
+A__V250.(ag(_C1,_V250) -> A__V949.(ag(_C1,_V949) -> _V250 = _V949))
+--(ag(_C1,bob) & ty(_C1,eat))
+---ag(_C0,bob)
+(ag(_C0,bob) -> john = bob)
+(ag(_C0,bob) -> A__V163.(ag(_C0,_V163) -> bob = _V163))
+E__V153.(ag(_V153,bob) & ty(_V153,eat))
+eat = eat
+john = john
+--eat = eat
+--john = john
+(ty(_C0,eat) -> eat = eat)
+(ag(_C0,john) -> john = john)
+A__V17.(ty(_C0,_V17) -> eat = _V17)
+A__V18.(ag(_C0,_V18) -> john = _V18)
+--A__V17.(ty(_C0,_V17) -> eat = _V17)
+--A__V18.(ag(_C0,_V18) -> john = _V18)
+ag(_C0,john)
+ty(_C0,eat)
+(ty(_C0,eat) -> A__V17.(ty(_C0,_V17) -> eat = _V17))
+(ag(_C0,john) -> A__V18.(ag(_C0,_V18) -> john = _V18))
+(ag(_C0,john) & ty(_C0,eat))
+A__V11.(ty(_C0,_V11) -> A__V950.(ty(_C0,_V950) -> _V11 = _V950))
+A__V12.(ag(_C0,_V12) -> A__V951.(ag(_C0,_V951) -> _V12 = _V951))
+--(ag(_C0,john) & ty(_C0,eat))
+E__V2.(ag(_V2,john) & ty(_V2,eat))
+A__V0.A__V952.(ty(_V0,_V952) -> A__V953.(ty(_V0,_V953) -> _V952 = _V953))
+A__V1.A__V954.(ag(_V1,_V954) -> A__V955.(ag(_V1,_V955) -> _V954 = _V955))
+Entities:
+_C1
+bob
+_C0
+john
+eat
+------------------------------

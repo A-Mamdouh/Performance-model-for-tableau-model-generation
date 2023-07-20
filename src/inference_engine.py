@@ -4,39 +4,51 @@ from .calculus import *
 from .narrator import *
 from typing import Optional, List, Generator
 
+
 class InferenceAgent:
-    def __init__(self, tableau: Optional[Tableau]=None):
+    def __init__(self, tableau: Optional[Tableau] = None):
         self.tableau = tableau
         if tableau is None:
             self.tableau = self._create_axioms()
-    
+
     @staticmethod
     def _create_axioms() -> Tableau:
         # First axiom: any event has only one type "A e.[ A t1.[ ty(e, t1) => (A t2.[ty(e, t2) => t1=t2 ]) ] ]"
         axiom1: Formula = Forall(
             lambda e: Forall(
-                lambda t1: Implies(Type_(e, t1), Forall(
-                    lambda t2: Implies(Type_(e, t2), Eq(t1, t2)),
-                    Term.Sort.TYPE
-                )),
-                Term.Sort.TYPE
-            ), Term.Sort.EVENT
+                lambda t1: Implies(
+                    Type_(e, t1),
+                    Forall(
+                        lambda t2: Implies(Type_(e, t2), Eq(t1, t2)), Term.Sort.TYPE
+                    ),
+                ),
+                Term.Sort.TYPE,
+            ),
+            Term.Sort.EVENT,
         )
         # Second axiom: any event has only one agent "A e.[ A a1.[ ag(e, a1) => (A a2.[ag(e, a2) => a1=a2 ]) ] ]"
         axiom2: Formula = Forall(
             lambda e: Forall(
-                lambda a1: Implies(Agent(e, a1), Forall(
-                    lambda a2: Implies(Agent(e, a2), Eq(a1, a2)),
-                    Term.Sort.AGENT
-                )),
-                Term.Sort.AGENT
+                lambda a1: Implies(
+                    Agent(e, a1),
+                    Forall(
+                        lambda a2: Implies(Agent(e, a2), Eq(a1, a2)), Term.Sort.AGENT
+                    ),
+                ),
+                Term.Sort.AGENT,
             ),
-            Term.Sort.EVENT
+            Term.Sort.EVENT,
         )
-        return Tableau([axiom1, axiom2])
-    
-    
-    def dfs(self, narrator: Narrator, tableau: Optional[Tableau] = None) -> Generator[Tableau, None, None]:
+        return Tableau(
+            [
+                axiom1,
+                axiom2,
+            ]
+        )
+
+    def dfs(
+        self, narrator: Narrator, tableau: Optional[Tableau] = None
+    ) -> Generator[Tableau, None, None]:
         if tableau is None:
             tableau = self.tableau
         try:
@@ -70,11 +82,13 @@ def main():
     mary = "mary"
     story = [
         NounVerbSentence(john, eat),
-        NounAlwaysVerbSentence(bob, sleep),
-        NounNotVerbSentence(mary, run)
+        # NounAlwaysVerbSentence(bob, sleep),
+        # NounNotVerbSentence(mary, run),
+        NounVerbSentence(bob, eat),
     ]
     narrator = Narrator(story)
     inference_agent = InferenceAgent()
+    i = 0
     for model in inference_agent.dfs(narrator):
         print("model:", *model.get_model(), sep=" ")
         print(*(str(x) for x in model.branch_formulas), sep="\n")
@@ -82,5 +96,5 @@ def main():
         print("-" * 30)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

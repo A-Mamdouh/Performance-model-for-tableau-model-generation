@@ -1,6 +1,6 @@
 from .syntax import *
 from .tableau import *
-from typing import Generator, Iterable
+from typing import Generator, Iterable, Union
 from itertools import product
 
 
@@ -23,10 +23,15 @@ def generate_models(tableau: Tableau) -> Generator[Tableau, None, None]:
     productions = [None]
     # First, apply axioms and non-branching rules exhaustively
     while len(productions) > 0:
+        if check_contradictions(model):  # Early cutting
+            return
         productions.clear()
         for f in model.formulas:
             productions.extend(t_no_branch(model, f))
-        productions.extend(apply_axioms(model))
+        if len(model.entities) > 0:
+            # Invoke axioms only on new entities
+            axioms_productions = apply_axioms(model)
+            productions.extend(axioms_productions)
         if len(productions) > 0:
             model = Tableau.merge(*productions, parent=model)
     model_chain = []
@@ -47,7 +52,10 @@ def generate_models(tableau: Tableau) -> Generator[Tableau, None, None]:
         return
     # Recursively apply model generation routine to get models
     for branch_product in product(*branches):
-        for new_model in generate_models(Tableau.merge(model, *branch_product, parent=tableau)):
+        x = branch_product
+        for new_model in generate_models(
+            Tableau.merge(*branch_product, model, parent=model.parent)
+        ):
             yield new_model
 
 
@@ -57,38 +65,48 @@ def apply_axioms(tableau: Tableau) -> Iterable[Tableau]:
         to_merge.extend(t_forall(tableau, f))
         to_merge.extend(t_forallf(tableau, f))
     if len(to_merge) > 0:
-        return Tableau.merge(*to_merge),
+        return (Tableau.merge(*to_merge, parent=tableau),)
     return []
 
 
 def check_contradictions(tableau: Tableau) -> bool:
-    """ return True if the current tableau has a contradiction. Checks input tableau against the whole branch """
-    for formula in tableau.formulas:
-        if isinstance(formula, Eq): # a = b
-            if formula.left.sort != formula.right.sort:
-                return True
+    """return True if the current tableau has a contradiction. Checks input tableau against the whole branch"""
+    # print("§"*20)
+    # print(*tableau.branch_formulas, sep="\n")
+    # print("§"*20)
+    for formula in tableau.branch_formulas:
+        if isinstance(formula, Eq):  # a = b
             if formula.left != formula.right:
                 return True
         if formula == False_:
-            return True # False
-        if Not(formula) in tableau.branch_formulas: # a, -a
+            return True  # False
+        if Not(formula) in tableau.branch_formulas:  # a, -a
             return True
         if isinstance(formula, Not):
-            if formula.formula in tableau.branch_formula: # -a, a
+            if formula.formula in tableau.branch_formulas:  # -a, a
                 return True
-            if formula.formula == True_: # -True
+            if formula.formula == True_:  # -True
                 return True
+            if isinstance(formula.formula, Eq):
+                if formula.formula.left == formula.formula.right:
+                    return True
     return False
 
 
 def t_no_branch(tableau: Tableau, f: And) -> Iterable[Tableau]:
-    return *t_and(tableau, f), *t_dneg(tableau, f), *t_forall(tableau, f), *t_forallf(tableau, f)
+    return (
+        *t_and(tableau, f),
+        *t_dneg(tableau, f),
+        *t_forall(tableau, f),
+        *t_forallf(tableau, f),
+    )
+
 
 def t_branch(tableau: Tableau, f: And) -> Iterable[Iterable[Tableau]]:
     branch_productions_list = [
         [*t_or(tableau, f)],
         [*t_exists(tableau, f)],
-        [*t_existsf(tableau, f)]
+        [*t_existsf(tableau, f)],
     ]
     return list(filter(lambda x: len(x) > 0, branch_productions_list))
 
@@ -104,9 +122,7 @@ def t_and(tableau: Tableau, f: And) -> Iterable[Tableau]:
 def t_or(tableau: Tableau, f: Not) -> Iterable[Tableau]:
     if isinstance(f, Not) and isinstance(f.formula, And):
         f = f.formula
-        formulas = (Not(branch) for branch in (f.left, f.right))
-        formulas = filter(lambda f_: f_ not in tableau.branch_formulas, )
-        return (Tableau([f_,], parent=tableau) for f_ in formulas)
+        return (_branch_or_empty(tableau, Not(f_)) for f_ in (f.left, f.right))
     return []
 
 
@@ -118,14 +134,17 @@ def t_dneg(tableau: Tableau, f: Not) -> Iterable[Tableau]:
     return []
 
 
-def t_exists(tableau: Tableau, f:Not) -> Iterable[Tableau]:
+def t_exists(tableau: Tableau, f: Not) -> Iterable[Tableau]:
     if isinstance(f, Not) and isinstance(f.formula, Forall):
         qf = f.formula
         witness = Constant(qf.sort)
-        formulas = (Not(qf.partial_formula(c)) for c in (*tableau.branch_entities, witness) if c.sort == qf.sort)
-        formulas = list(filter(lambda f_: f_ not in tableau.branch_formulas, formulas))
-        if len(formulas) > 0:
-            return (Tableau([f_,], parent=tableau) for f_ in formulas)
+        witness_branch = Tableau([Not(qf.partial_formula(witness))], [witness], tableau)
+        branches = (
+            _branch_or_empty(tableau, Not(qf.partial_formula(c)))
+            for c in tableau.branch_entities
+            if c.sort == qf.sort
+        )
+        return *branches, witness_branch
     return []
 
 
@@ -133,19 +152,25 @@ def t_existsf(tableau: Tableau, f: Not) -> Iterable[Tableau]:
     if isinstance(f, Not) and isinstance(f.formula, ForallF):
         qf = f.formula
         witness = Constant(qf.sort)
-        formulas = ( Not(qf.focused_partial(c))
+        witness_branch = Tableau(
+            [Not(qf.focused_partial(witness)), qf.unfocused_partial(witness)],
+            [witness],
+            tableau,
+        )
+        branches = (
+            _branch_or_empty(tableau, qf.focused_partial(c))
             for c in tableau.branch_entities
             if c.sort == qf.sort and qf.unfocused_partial(c) in tableau.branch_formulas
-        ) 
-        formulas = list(filter(lambda f_: f_ not in tableau.branch_formulas, (*formulas, Not(qf.focused_partial(witness)))))
-        if len(formulas) > 0:
-            return (Tableau([f_], parent=tableau) for f_ in formulas)
+        )
+        return *branches, witness_branch
     return []
 
 
 def t_forall(tableau: Tableau, f: Forall) -> Iterable[Tableau]:
     if isinstance(f, Forall):
-        formulas = (f.partial_formula(c) for c in tableau.branch_entities if c.sort == f.sort)
+        formulas = (
+            f.partial_formula(c) for c in tableau.branch_entities if c.sort == f.sort
+        )
         formulas = list(filter(lambda f_: f_ not in tableau.branch_formulas, formulas))
         if len(formulas) > 0:
             return (Tableau(formulas, parent=tableau),)
@@ -154,18 +179,30 @@ def t_forall(tableau: Tableau, f: Forall) -> Iterable[Tableau]:
 
 def t_forallf(tableau: Tableau, f: ForallF) -> Iterable[Tableau]:
     if isinstance(f, ForallF):
-        relation_entities = [c for c in tableau.branch_entities if f.unfocused_partial(c) in tableau.branch_formulas]
+        relation_entities = [
+            c
+            for c in tableau.branch_entities
+            if f.unfocused_partial(c) in tableau.branch_formulas
+        ]
         if len(relation_entities) > 0:
-            formulas = (f.focused_partial(c) for c in relation_entities if c.sort == f.sort)
+            formulas = (
+                f.focused_partial(c) for c in relation_entities if c.sort == f.sort
+            )
             formulas = filter(lambda f_: f_ not in tableau.branch_formulas, formulas)
             return (Tableau(formulas, parent=tableau),)
     return []
     # TODO: Discuss this rule later with Michael and Fredrick
-        # return (
-        #     Tableau([Forall(lambda x: Not(f.unfocused_partial(x)), f.sort)], parent=tableau),
-        #     Tableau([], parent=tableau)
-        # )
-        
+    # return (
+    #     Tableau([Forall(lambda x: Not(f.unfocused_partial(x)), f.sort)], parent=tableau),
+    #     Tableau([], parent=tableau)
+    # )
+
+
+def _branch_or_empty(parent: Tableau, f: Union[Formula, PartialFormula]) -> Tableau:
+    """Returns a new tableau with the formula if it is new,  otherwise with no new formulas"""
+    if f in parent.branch_formulas:
+        return Tableau([], parent=parent)
+    return Tableau([f], parent=parent)
 
 
 """

@@ -43,11 +43,22 @@ class Tableau:
             if t.closing:
                 closing = True
         return Tableau(formulas, entities, closing=closing, parent=parent)
-    
+
     def copy(self) -> "Tableau":
         copy = Tableau.merge(self)
         copy.parent = self.parent
         return copy
+
+    @property
+    def _str(self) -> str:
+        return f"{' $ '.join(str(x) for x in self.formulas)} | {' $ '.join(str(x) for x in self.entities)}"
+
+    def _sorted_str(self) -> str:
+        sorted_f = [str(x) for x in self.branch_formulas]
+        sorted_f.sort()
+        sorted_e = [str(x) for x in self.branch_entities]
+        sorted_e.sort()
+        return f"{' $ '.join(sorted_f)} §§ {' $ '.join(sorted_e)}"
 
     def __str__(self) -> str:
         return str(

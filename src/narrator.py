@@ -65,10 +65,14 @@ class NounVerbSentence(Sentence):
             return Exists(lambda e: And(Agent(e, n), Type_(e, v)), Term.Sort.EVENT)
         elif focus == Sentence.Focus.NOUN:
             # E_e.ty(e, v):ag(e, n)
-            return ExistsF(lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT)
+            return ExistsF(
+                lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT
+            )
         elif focus == Sentence.Focus.VERB:
             # E_e.ag(e, n):ty(e, v)
-            return ExistsF(lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT)
+            return ExistsF(
+                lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT
+            )
         else:
             raise NotImplementedError()
 
@@ -94,10 +98,14 @@ class NounNotVerbSentence(Sentence):
             return Forall(lambda e: Not(And(Agent(e, n), Type_(e, v))), Term.Sort.EVENT)
         elif focus == Sentence.Focus.NOUN:
             # A_e.ty(e,v):-ag(e,n)
-            return ForallF(lambda e: Type_(e, v), lambda e: Not(Agent(e, n)), Term.Sort.EVENT)
+            return ForallF(
+                lambda e: Type_(e, v), lambda e: Not(Agent(e, n)), Term.Sort.EVENT
+            )
         elif focus == Sentence.Focus.VERB:
             # A_e.ag(e,v):-ty(e,n)
-            return ForallF(lambda e: Agent(e, n), lambda e: Not(Type_(e, v)), Term.Sort.EVENT)
+            return ForallF(
+                lambda e: Agent(e, n), lambda e: Not(Type_(e, v)), Term.Sort.EVENT
+            )
         else:
             raise NotImplementedError()
 
@@ -118,13 +126,19 @@ class NounAlwaysVerbSentence(Sentence):
         v = Constant(Term.Sort.TYPE, self.verb.inf)
         if focus == Sentence.Focus.FULL:
             # A_e . ag(e, n) -> ty(e, v)
-            return Forall((lambda e: Implies(Agent(e, n), Type_(e, v))), Term.Sort.EVENT)
+            return Forall(
+                (lambda e: Implies(Agent(e, n), Type_(e, v))), Term.Sort.EVENT
+            )
         elif focus == Sentence.Focus.NOUN:
             # A_e.ty(e,v):ag(e,n)
-            return ForallF(lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT)
+            return ForallF(
+                lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT
+            )
         elif focus == Sentence.Focus.VERB:
             # A_e.ag(e,v):ty(e,n)
-            return ForallF(lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT)
+            return ForallF(
+                lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT
+            )
         else:
             raise NotImplementedError()
 
