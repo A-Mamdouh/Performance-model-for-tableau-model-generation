@@ -291,6 +291,7 @@ class QuantifiedFormula(Formula):
 class FocusQuantifiedFormula(Formula):
     quantifier: Quantifier
     variable: Variable
+    sort: Term.Sort
     unfocused_partial: PartialFormula
     focused_partial: PartialFormula
 

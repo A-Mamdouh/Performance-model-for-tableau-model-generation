@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import Sequence, ClassVar, Iterable
+from typing import Sequence, Iterable
 from enum import Enum
 
 from .syntax import *
