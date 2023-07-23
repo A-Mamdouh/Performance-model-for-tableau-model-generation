@@ -78,6 +78,18 @@ def check_contradictions(tableau: Tableau) -> bool:
         if isinstance(formula, Eq):  # a = b
             if formula.left != formula.right:
                 return True
+        if isinstance(formula, Agent):
+            event, agent = formula.args
+            for entity in tableau.branch_entities:
+                if entity.sort == agent.sort and entity != agent:
+                    if Agent(event, entity) in tableau.branch_formulas:
+                        return True
+        if isinstance(formula, Type_):
+            event, type_ = formula.args
+            for entity in tableau.branch_entities:
+                if entity.sort == type_.sort and entity != type_:
+                    if Type_(event, entity) in tableau.branch_formulas:
+                        return True
         if formula == False_:
             return True  # False
         if Not(formula) in tableau.branch_formulas:  # a, -a
@@ -191,11 +203,6 @@ def t_forallf(tableau: Tableau, f: ForallF) -> Iterable[Tableau]:
             formulas = filter(lambda f_: f_ not in tableau.branch_formulas, formulas)
             return (Tableau(formulas, parent=tableau),)
     return []
-    # TODO: Discuss this rule later with Michael and Fredrick
-    # return (
-    #     Tableau([Forall(lambda x: Not(f.unfocused_partial(x)), f.sort)], parent=tableau),
-    #     Tableau([], parent=tableau)
-    # )
 
 
 def _branch_or_empty(parent: Tableau, f: Union[Formula, PartialFormula]) -> Tableau:

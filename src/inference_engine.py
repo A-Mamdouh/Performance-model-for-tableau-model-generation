@@ -41,8 +41,8 @@ class InferenceAgent:
         )
         return Tableau(
             [
-                axiom1,
-                axiom2,
+                # axiom1,
+                # axiom2,
             ]
         )
 
@@ -82,8 +82,8 @@ def main():
     mary = "mary"
     story = [
         NounVerbSentence(john, eat),
-        # NounAlwaysVerbSentence(bob, sleep),
-        # NounNotVerbSentence(mary, run),
+        NounAlwaysVerbSentence(bob, sleep),
+        NounNotVerbSentence(mary, run),
         NounVerbSentence(bob, eat),
     ]
     narrator = Narrator(story)
