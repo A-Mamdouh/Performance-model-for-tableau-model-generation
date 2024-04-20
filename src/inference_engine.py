@@ -2,14 +2,16 @@ from .syntax import *
 from .tableau import *
 from .calculus import *
 from .narrator import *
-from typing import Optional, List, Generator
+from .heuristic import Heuristic
+from typing import Optional, List, Generator, Tuple
 
 
 class InferenceAgent:
-    def __init__(self, tableau: Optional[Tableau] = None):
+    def __init__(self, heuristic_agent: Heuristic, tableau: Optional[Tableau] = None):
         self.tableau = tableau
         if tableau is None:
             self.tableau = self._create_axioms()
+        self.heuristic_agent = heuristic_agent
 
     @staticmethod
     def _create_axioms() -> Tableau:
@@ -55,7 +57,7 @@ class InferenceAgent:
             sentence: Sentence = next(iter(narrator))
         except StopIteration:
             return
-        formula = sentence.get_formula(Sentence.Focus.FULL)
+
         # Check for new entities
         noun_constant = Constant(Term.Sort.AGENT, sentence.noun)
         verb_constant = Constant(Term.Sort.TYPE, sentence.verb.inf)
@@ -64,13 +66,21 @@ class InferenceAgent:
             new_entities.append(noun_constant)
         if verb_constant not in tableau.branch_entities:
             new_entities.append(verb_constant)
-        new_tableau = Tableau([formula], new_entities, tableau)
-        # Create model for current sentence
-        for model in generate_models(new_tableau):
-            yield model
-            # Get models for future sentences
-            for model2 in self.dfs(narrator.copy(), model):
-                yield model2
+        
+        # Order readings by focus score
+        scored_focused_formulas: List[Tuple[float, Formula]] = []
+        for focus in Sentence.Focus:
+            for formula in sentence.get_formulas(focus):
+                score = self.heuristic_agent.scoreFormula(formula, tableau)
+                scored_focused_formulas.append((score, formula))
+        for _, formula in sorted(scored_focused_formulas, key=lambda x: x[0]):
+            new_tableau = Tableau([formula], new_entities, tableau)
+            # Create model for current sentence
+            for model in generate_models(new_tableau):
+                yield model
+                # Get models for future sentences
+                for model2 in self.dfs(narrator.copy(), model):
+                    yield model2
 
 
 def main():
@@ -87,13 +97,16 @@ def main():
         NounVerbSentence(bob, eat),
     ]
     narrator = Narrator(story)
-    inference_agent = InferenceAgent()
-    i = 0
+    heuristic = Heuristic()
+    inference_agent = InferenceAgent(heuristic_agent=heuristic)
+    n_models = 0
     for model in inference_agent.dfs(narrator):
-        print("model:", *model.get_model(), sep=" ")
-        print(*(str(x) for x in model.branch_formulas), sep="\n")
-        print("Entities:", *(str(x) for x in model.branch_entities), sep="\n")
+        # print("model:", *model.get_model(), sep=" ", end="\n")
+        print(*(x.annotation for x in model.branch_formulas if x.annotation), sep="\n", end="\n")
+        # print("Entities:", *(str(x) for x in model.branch_entities), sep="\n")
         print("-" * 30)
+        n_models += 1
+    print(n_models)
 
 
 if __name__ == "__main__":

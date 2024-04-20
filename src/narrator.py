@@ -35,112 +35,155 @@ class Sentence(ABC):
         VERB = 2
 
     @abstractmethod
-    def get_str(self, focus: Focus) -> str:
+    def get_str(self, focus: Focus) -> Iterable[str]:
         pass
 
     def __str__(self) -> str:
         self.get_str(Sentence.Focus.ALL)
 
     @abstractmethod
-    def get_formula(self, focus: Focus = Focus.FULL) -> Formula:
+    def get_formulas(self, focus: Focus = Focus.FULL) -> Iterable[Formula]:
         pass
 
 
 class NounVerbSentence(Sentence):
-    def get_str(self, focus: Sentence.Focus) -> str:
-        if focus == Sentence.Focus.FULL:
-            return f"{self.noun} {self.verb.past}"
-        elif focus == Sentence.Focus.NOUN:
-            return f"the one who {self.verb.past} is {self.noun}"
-        elif focus == Sentence.Focus.VERB:
-            return f"{self.noun} did something: {self.noun} {self.verb.past}"
-        else:
-            raise NotImplementedError()
+    def get_str(self, focus: Sentence.Focus) -> Iterable[str]:
+        match focus:
+            case Sentence.Focus.FULL:
+                return [f"{self.noun} {self.verb.past}"]
+            case Sentence.Focus.NOUN:
+                return [f"The one who {self.verb.past} is {self.noun}"]
+            case Sentence.Focus.VERB:
+                return [f"{self.noun} did something; {self.noun} {self.verb.past}"]
+            case _:
+                raise NotImplementedError()
 
-    def get_formula(self, focus: Sentence.Focus) -> Formula:
+    def get_formulas(self, focus: Sentence.Focus) -> Iterable[Formula]:
         n = Constant(Term.Sort.AGENT, self.noun)
         v = Constant(Term.Sort.TYPE, self.verb.inf)
-        if focus == Sentence.Focus.FULL:
-            # E_e.ag(e, n) /\ ty(e, v)
-            return Exists(lambda e: And(Agent(e, n), Type_(e, v)), Term.Sort.EVENT)
-        elif focus == Sentence.Focus.NOUN:
-            # E_e.ty(e, v):ag(e, n)
-            return ExistsF(
-                lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT
-            )
-        elif focus == Sentence.Focus.VERB:
-            # E_e.ag(e, n):ty(e, v)
-            return ExistsF(
-                lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT
-            )
-        else:
-            raise NotImplementedError()
-
-
-class NounNotVerbSentence(Sentence):
-    def get_str(self, focus: Sentence.Focus) -> str:
-        if focus == Sentence.Focus.FULL:
-            return f"{self.noun} did not {self.verb.inf}"
-        elif focus == Sentence.Focus.NOUN:
-            return f"the one who {self.verb.past} is not {self.noun}"
-        elif focus == Sentence.Focus.VERB:
-            return (
-                f"{self.noun} did not {self.verb.inf} ({self.noun} did something else)"
-            )
-        else:
-            raise NotImplementedError()
-
-    def get_formula(self, focus: Sentence.Focus) -> Formula:
-        n = Constant(Term.Sort.AGENT, self.noun)
-        v = Constant(Term.Sort.TYPE, self.verb.inf)
-        if focus == Sentence.Focus.FULL:
-            # A_e.-(ag(e, n) & ty(e, v))
-            return Forall(lambda e: Not(And(Agent(e, n), Type_(e, v))), Term.Sort.EVENT)
-        elif focus == Sentence.Focus.NOUN:
-            # A_e.ty(e,v):-ag(e,n)
-            return ForallF(
-                lambda e: Type_(e, v), lambda e: Not(Agent(e, n)), Term.Sort.EVENT
-            )
-        elif focus == Sentence.Focus.VERB:
-            # A_e.ag(e,v):-ty(e,n)
-            return ForallF(
-                lambda e: Agent(e, n), lambda e: Not(Type_(e, v)), Term.Sort.EVENT
-            )
-        else:
-            raise NotImplementedError()
+        formulas: Formula = None
+        match focus:
+            case Sentence.Focus.FULL:
+                formulas = [
+                    # E_e.ag(e, n) /\ ty(e, v)
+                    Exists( lambda e: And(Agent(e, n), Type_(e, v)), Term.Sort.EVENT )
+                ]
+            case Sentence.Focus.NOUN:
+                formulas = [
+                    # E_e.ty(e, v):ag(e, n)
+                    ExistsF( lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT )
+                ]
+            case Sentence.Focus.VERB:
+                
+                formulas = [
+                    # E_e.ag(e, n):ty(e, v)
+                    ExistsF( lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT )
+                ]
+            case _:
+                raise NotImplementedError()
+        # Add annotation
+        for formula, annotation in zip(formulas, self.get_str(focus)):
+            formula.annotation = annotation
+        return formulas
 
 
 class NounAlwaysVerbSentence(Sentence):
-    def get_str(self, focus: Sentence.Focus) -> str:
-        if focus == Sentence.Focus.FULL:
-            return f"{self.noun} always {self.verb.past}"
-        elif focus == Sentence.Focus.NOUN:
-            return f"if someone {self.verb.past}, it was {self.noun}"
-        elif focus == Sentence.Focus.VERB:
-            return f"all {self.noun} does is {self.verb.inf}"
-        else:
-            raise NotImplementedError()
+    def get_str(self, focus: Sentence.Focus) -> Iterable[str]:
+        match focus:
+            case Sentence.Focus.FULL:
+                return [f"{self.noun} always {self.verb.past}"] # TODO: This focus does not make sense. Since it will pick one of the others internally.
+            case Sentence.Focus.NOUN:
+                return [f"if someone {self.verb.past}, it was {self.noun}"]
+            case Sentence.Focus.VERB:
+                return [f"all {self.noun} does is {self.verb.inf}"]
+            case _:
+                raise NotImplementedError()
 
-    def get_formula(self, focus: Sentence.Focus) -> Formula:
+    def get_formulas(self, focus: Sentence.Focus) -> Iterable[Formula]:
         n = Constant(Term.Sort.AGENT, self.noun)
         v = Constant(Term.Sort.TYPE, self.verb.inf)
-        if focus == Sentence.Focus.FULL:
-            # A_e . ag(e, n) -> ty(e, v)
-            return Forall(
-                (lambda e: Implies(Agent(e, n), Type_(e, v))), Term.Sort.EVENT
-            )
-        elif focus == Sentence.Focus.NOUN:
-            # A_e.ty(e,v):ag(e,n)
-            return ForallF(
-                lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT
-            )
-        elif focus == Sentence.Focus.VERB:
-            # A_e.ag(e,v):ty(e,n)
-            return ForallF(
-                lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT
-            )
-        else:
-            raise NotImplementedError()
+        formulas: Formula = None
+        match focus:
+            case Sentence.Focus.FULL:
+                formulas = [
+                    # A_e . ag(e, n) -> ty(e, v)
+                    Forall( lambda e: Implies(Agent(e, n), Type_(e, v)), Term.Sort.EVENT )
+                ]
+            case Sentence.Focus.NOUN:
+                formulas = [
+                    # A_e.ty(e,v):ag(e,n)
+                    ForallF( lambda e: Type_(e, v), lambda e: Agent(e, n), Term.Sort.EVENT )
+                ]
+            case Sentence.Focus.VERB:
+                formulas = [
+                    # A_e.ag(e,v):ty(e,n)
+                    ForallF( lambda e: Agent(e, n), lambda e: Type_(e, v), Term.Sort.EVENT )
+                ]
+            case _:
+                raise NotImplementedError()
+        for formula, annotation in zip(formulas, self.get_str(focus)):
+            formula.annotation = annotation
+        return formulas
+
+
+class NounNotVerbSentence(Sentence):
+    def get_str(self, focus: Sentence.Focus) -> Iterable[str]:
+        match focus:
+            case Sentence.Focus.FULL:
+                return [
+                    # Event is not negated
+                    f"Either {self.noun} did something that is not {self.verb.inf}, or someone other than {self.noun} {self.verb.past}",
+                    # Event is negated
+                    f"Every event is either not {self.noun}'s or not a {self.verb.inf} event"
+                ]
+            case Sentence.Focus.NOUN:
+                return [
+                        # Event is not engated
+                        f"Someone {self.verb.past}, but it was not {self.noun}",
+                        # Event is negated
+                        f"{self.noun} never {self.verb.past}"
+                    ]
+            case Sentence.Focus.VERB:
+                return [
+                        # Event is not negated
+                        f"{self.noun} did something, but it was not {self.verb.inf}",
+                        # Event is negated
+                        f"if someone {self.verb.past}, it's not {self.noun}"
+                    ]
+            case _:
+                raise NotImplementedError()
+
+    def get_formulas(self, focus: Sentence.Focus) -> Formula:
+        n = Constant(Term.Sort.AGENT, self.noun)
+        v = Constant(Term.Sort.TYPE, self.verb.inf)
+        formulas: Iterable[Formula] = None
+        match focus:
+            case    Sentence.Focus.FULL:
+                formulas = [
+                    # E_e.(-ag(e, n) | -ty(e, v))
+                    Exists(lambda e: -Agent(e, n) + -Type_(e, v), Term.Sort.EVENT),
+                    # A_e.(-ag(e, n) | -ty(e, v))
+                    Forall(lambda e: -Agent(e, n) + -Type_(e, v), Term.Sort.EVENT),
+                ]
+            case Sentence.Focus.NOUN:
+                formulas = [
+                    # E_e.Ty(e,v):-Ag(e,n)
+                    ExistsF(lambda e: Type_(e, v), lambda e: -Agent(e, n), Term.Sort.EVENT),
+                    # A_e.Ty(e,v):-Ag(e,n)
+                    ForallF(lambda e: Type_(e, v), lambda e: -Agent(e, n), Term.Sort.EVENT),
+                ]
+            case Sentence.Focus.VERB:
+                formulas = [
+                    # E_e.Ag(e,n):-Ty(e,v)
+                    ExistsF(lambda e: Agent(e, n), lambda e: -Type_(e, v), Term.Sort.EVENT),
+                    # A_e.Ag(e,n):-Ty(e,v)
+                    ForallF(lambda e: Agent(e, n), lambda e: -Type_(e, v), Term.Sort.EVENT),
+                ]
+            case _:
+                raise NotImplementedError()
+        for formula, annotation in zip(formulas, self.get_str(focus)):
+            formula.annotation = annotation
+        return formulas
 
 
 Story = Sequence[Sentence]

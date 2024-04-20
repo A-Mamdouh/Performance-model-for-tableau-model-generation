@@ -41,7 +41,7 @@ def generate_models(tableau: Tableau) -> Generator[Tableau, None, None]:
     model = Tableau.merge(*model_chain, parent=tableau)
     # Then, collect branches from branching rules
     branches = []
-    for f in *tableau.formulas, *model.formulas:
+    for f in (*tableau.formulas, *model.formulas):
         b = t_branch(model, f)
         if len(b) > 0:
             branches.extend(b)
@@ -71,9 +71,6 @@ def apply_axioms(tableau: Tableau) -> Iterable[Tableau]:
 
 def check_contradictions(tableau: Tableau) -> bool:
     """return True if the current tableau has a contradiction. Checks input tableau against the whole branch"""
-    # print("§"*20)
-    # print(*tableau.branch_formulas, sep="\n")
-    # print("§"*20)
     for formula in tableau.branch_formulas:
         if isinstance(formula, Eq):  # a = b
             if formula.left != formula.right:

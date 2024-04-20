@@ -28,6 +28,16 @@ class Tableau:
         if self.parent is None:
             return self.entities
         return *self.entities, *self.parent.branch_entities
+    
+    @property
+    def annotations(self) -> Iterable[str]:
+        return map(lambda f: f.annotation, self.formulas)
+    
+    @property
+    def branch_annotations(self) -> Iterable[str]:
+        if self.parent is None:
+            return self.annotations
+        return *self.annotations, *self.parent.branch_annotations
 
     def get_model(self) -> Iterable[Formula]:
         return filter(is_literal, self.branch_formulas)

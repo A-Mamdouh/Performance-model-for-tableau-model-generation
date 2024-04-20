@@ -107,11 +107,16 @@ class Variable(Term):
 class Formula(ABC):
     """Formula productions"""
 
+    def __init__(self):
+        self.annotation: Optional[str] = None
+
     @abstractmethod
     def _get_str(self) -> str:
         pass
 
     def __str__(self) -> str:
+        if self.annotation:
+            return self._get_str() + f" | ({self.annotation})"
         return self._get_str()
 
     def __eq__(self, obj) -> bool:
@@ -121,6 +126,15 @@ class Formula(ABC):
 
     def __hash__(self) -> int:
         return hash(self.__dict__.items())
+    
+    def __add__(self, other) -> "Or":
+        return Or(self, other)
+    
+    def __mul__(self, other) -> "And":
+        return And(self, other)
+    
+    def __neg__(self) -> "Not":
+        return Not(self)
 
 
 @dataclass
@@ -142,6 +156,7 @@ class AppliedPredicate(Formula):
 
     def __post_init__(self) -> None:
         assert self.predicate.arity == len(self.args)
+        super().__init__()
 
     def _get_str(self) -> str:
         if self.predicate.arity == 0:
@@ -167,6 +182,9 @@ class And(Formula):
     left: Formula
     right: Formula
 
+    def __post_init__(self):
+        super().__init__()
+
     def _get_str(self) -> str:
         return f"({self.left} & {self.right})"
 
@@ -179,6 +197,9 @@ class And(Formula):
 @dataclass
 class Not(Formula):
     formula: Formula
+
+    def __post_init__(self):
+        super().__init__()
 
     def _get_str(self) -> str:
         return f"-{self.formula}"
@@ -269,6 +290,7 @@ class QuantifiedFormula(Formula):
         if not isinstance(self.partial_formula, PartialFormula):
             self.partial_formula = PartialFormula(self.partial_formula)
         self.sort = self.variable.sort
+        super().__init__()
 
     @property
     def applied(self) -> Union[Formula, PartialFormula]:
@@ -304,6 +326,7 @@ class FocusQuantifiedFormula(Formula):
         if not isinstance(self.focused_partial, PartialFormula):
             self.focused_partial = PartialFormula(self.focused_partial)
         self.sort = self.variable.sort
+        super().__init__()
 
     @property
     def unfocused(self) -> Union[Formula, PartialFormula]:
