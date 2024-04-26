@@ -52,7 +52,6 @@ def generate_models(tableau: Tableau) -> Generator[Tableau, None, None]:
         return
     # Recursively apply model generation routine to get models
     for branch_product in product(*branches):
-        x = branch_product
         for new_model in generate_models(
             Tableau.merge(*branch_product, model, parent=model.parent)
         ):
@@ -77,16 +76,26 @@ def check_contradictions(tableau: Tableau) -> bool:
                 return True
         if isinstance(formula, Agent):
             event, agent = formula.args
-            for entity in tableau.branch_entities:
-                if entity.sort == agent.sort and entity != agent:
-                    if Agent(event, entity) in tableau.branch_formulas:
-                        return True
+            for literal in tableau.get_branch_event_literals(event):
+                l = literal
+                negated = False
+                if isinstance(literal, Not):
+                    l = literal.formula
+                    negated = True
+                if isinstance(l, Agent):
+                    if (l.args[1] != agent) ^ negated:
+                        return False
         if isinstance(formula, Type_):
             event, type_ = formula.args
-            for entity in tableau.branch_entities:
-                if entity.sort == type_.sort and entity != type_:
-                    if Type_(event, entity) in tableau.branch_formulas:
-                        return True
+            for literal in tableau.get_branch_event_literals(event):
+                l = literal
+                negated = False
+                if isinstance(literal, Not):
+                    l = literal.formula
+                    negated = True
+                if isinstance(l, Type_):
+                    if (l.args[1] != type_) ^ negated:
+                        return False
         if formula == False_:
             return True  # False
         if Not(formula) in tableau.branch_formulas:  # a, -a
@@ -102,7 +111,7 @@ def check_contradictions(tableau: Tableau) -> bool:
     return False
 
 
-def t_no_branch(tableau: Tableau, f: And) -> Iterable[Tableau]:
+def t_no_branch(tableau: Tableau, f: Formula) -> Iterable[Tableau]:
     return (
         *t_and(tableau, f),
         *t_dneg(tableau, f),
@@ -111,12 +120,11 @@ def t_no_branch(tableau: Tableau, f: And) -> Iterable[Tableau]:
     )
 
 
-def t_branch(tableau: Tableau, f: And) -> Iterable[Iterable[Tableau]]:
-    branch_productions_list = [
-        [*t_or(tableau, f)],
-        [*t_exists(tableau, f)],
-        [*t_existsf(tableau, f)],
-    ]
+def t_branch(tableau: Tableau, f: Formula) -> Iterable[Iterable[Tableau]]:
+    branch_productions_list = []
+    branch_productions_list.append(list(t_or(tableau, f)))
+    branch_productions_list.append(list(t_exists(tableau, f)))
+    branch_productions_list.append(list(t_existsf(tableau, f)))
     return list(filter(lambda x: len(x) > 0, branch_productions_list))
 
 
