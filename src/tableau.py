@@ -18,6 +18,47 @@ class Tableau:
         if self.parent is None:
             return self.formulas
         return *self.formulas, *self.parent.branch_formulas
+    
+    @property
+    def events(self) -> Iterable[Constant]:
+        return filter(lambda x: x.sort is Constant.Sort.EVENT, self.entities)
+
+    @property
+    def branch_events(self) -> Iterable[Constant]:
+        if self.parent:
+            return *self.events, *self.parent.branch_events
+        return self.events
+
+    @staticmethod
+    def _get_entity_from_literal(literal: Formula, sort: Term.Sort) -> Optional[Constant]:
+        formula = literal
+        if isinstance(literal, Not):
+            formula = literal.formula
+        if isinstance(formula, AppliedPredicate):
+            matches = list(filter(lambda x: x.sort == sort, formula.args))
+            if not matches:
+                return None
+            return matches[0]
+        return None
+    
+    @property
+    def literals(self) -> Iterable[Formula]:
+        return filter(is_literal, self.formulas)
+    
+    @property
+    def branch_literals(self) -> Iterable[Formula]:
+        return filter(is_literal, self.branch_formulas)
+    
+    @property
+    def event_literals(self) -> Iterable[Formula]:
+        return filter(lambda x: self._get_entity_from_literal(x, Term.Sort.EVENT) is not None, self.literals)
+    
+    @property
+    def branch_event_literals(self) -> Iterable[Formula]:
+        return filter(lambda x: self._get_entity_from_literal(x, Term.Sort.EVENT) is not None, self.branch_literals)
+    
+    def get_branch_event_literals(self, event: Term) -> Iterable[Formula]:
+        return filter(lambda x: self._get_entity_from_literal(x, Term.Sort.EVENT) == event, self.branch_literals)
 
     @property
     def branch_model(self) -> Iterable[Formula]:
@@ -31,7 +72,7 @@ class Tableau:
     
     @property
     def annotations(self) -> Iterable[str]:
-        return map(lambda f: f.annotation, self.formulas)
+        return filter(lambda x: not x is None, map(lambda f: f.annotation, self.formulas))
     
     @property
     def branch_annotations(self) -> Iterable[str]:

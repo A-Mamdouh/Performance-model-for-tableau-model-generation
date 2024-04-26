@@ -79,7 +79,15 @@ class Constant(Term):
             self.name = name
 
     def _get_str(self) -> str:
-        return self.name
+        match self.sort:
+            case Term.Sort.EVENT:
+                return f"Event({self.name})"
+            case Term.Sort.TYPE:
+                return f"Type({self.name})"
+            case Term.Sort.AGENT:
+                return f"Agent({self.name})"
+            case _:
+                raise ValueError(f"Undefined constant sort: {self.sort}")
 
 
 class Variable(Term):

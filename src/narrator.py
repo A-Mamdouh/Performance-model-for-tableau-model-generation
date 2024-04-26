@@ -38,6 +38,10 @@ class Sentence(ABC):
     def get_str(self, focus: Focus) -> Iterable[str]:
         pass
 
+    @abstractmethod
+    def get_focuses(self) -> Iterable[Focus]:
+        pass
+
     def __str__(self) -> str:
         self.get_str(Sentence.Focus.ALL)
 
@@ -57,6 +61,9 @@ class NounVerbSentence(Sentence):
                 return [f"{self.noun} did something; {self.noun} {self.verb.past}"]
             case _:
                 raise NotImplementedError()
+    
+    def get_focuses(self) -> Iterable[Sentence.Focus]:
+        return [Sentence.Focus.NOUN, Sentence.Focus.VERB]
 
     def get_formulas(self, focus: Sentence.Focus) -> Iterable[Formula]:
         n = Constant(Term.Sort.AGENT, self.noun)
@@ -98,6 +105,9 @@ class NounAlwaysVerbSentence(Sentence):
                 return [f"all {self.noun} does is {self.verb.inf}"]
             case _:
                 raise NotImplementedError()
+
+    def get_focuses(self) -> Iterable[Sentence.Focus]:
+        return [Sentence.Focus.NOUN, Sentence.Focus.VERB]
 
     def get_formulas(self, focus: Sentence.Focus) -> Iterable[Formula]:
         n = Constant(Term.Sort.AGENT, self.noun)
@@ -152,6 +162,9 @@ class NounNotVerbSentence(Sentence):
                     ]
             case _:
                 raise NotImplementedError()
+
+    def get_focuses(self) -> Iterable[Sentence.Focus]:
+        return [Sentence.Focus.NOUN, Sentence.Focus.VERB, Sentence.Focus.FULL]
 
     def get_formulas(self, focus: Sentence.Focus) -> Formula:
         n = Constant(Term.Sort.AGENT, self.noun)
