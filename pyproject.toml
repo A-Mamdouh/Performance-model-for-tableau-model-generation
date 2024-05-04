@@ -1,0 +1,9 @@
+[project]
+name = "performance-model-for-tableau-model-generation"
+dynamic = ["version"]
+dependencies = ["pytest==8.2.0", "ruff==0.4.2"]
+
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = "test"
