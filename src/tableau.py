@@ -1,120 +1,149 @@
-from .syntax import *
-from typing import Iterable, Optional
 from dataclasses import dataclass, field
+from typing import Dict, Iterable, Optional
+import itertools
 
+import src.syntax as S
 
 __all__ = ("Tableau",)
 
 
 @dataclass
+class EventInformation:
+    event: S.Term
+    positive_types: Iterable[S.Type_] = field(default_factory=list)
+    positive_agents: Iterable[S.Agent] = field(default_factory=list)
+    negative_types: Iterable[S.Not] = field(default_factory=list)
+    negative_agents: Iterable[S.Not] = field(default_factory=list)
+
+    @property
+    def all_literals(self) -> Iterable[S.Literal]:
+        return (
+            *self.positive_types,
+            *self.positive_agents,
+            *self.negative_types,
+            *self.negative_agents,
+        )
+
+
+@dataclass
 class Tableau:
-    formulas: Iterable[Formula]
-    entities: Iterable[Term] = field(default_factory=list)
+    """This class represents a tableau node. It contains formulas, entities and a reference to the node's parent"""
+
+    #: list of formulas that exist in this node
+    formulas: Iterable[S.Formula] = field(default_factory=list)
+    #: List of entities that exist in this node
+    entities: Iterable[S.Term] = field(default_factory=list)
+    #: Parent node. None if this is the root node
     parent: Optional["Tableau"] = None
+    #: True if this node makes the current branch a closed branch
     closing: bool = False
 
     @property
-    def branch_formulas(self) -> Iterable[Formula]:
+    def branch_formulas(self) -> Iterable[S.Formula]:
+        """All formulas from this node up to the root. Starting with this node"""
         if self.parent is None:
             return self.formulas
-        return *self.formulas, *self.parent.branch_formulas
-    
-    @property
-    def events(self) -> Iterable[Constant]:
-        return filter(lambda x: x.sort is Constant.Sort.EVENT, self.entities)
+        return itertools.chain(self.formulas, self.parent.branch_formulas)
 
     @property
-    def branch_events(self) -> Iterable[Constant]:
-        if self.parent:
-            return *self.events, *self.parent.branch_events
-        return self.events
-
-    @staticmethod
-    def _get_entity_from_literal(literal: Formula, sort: Term.Sort) -> Optional[Constant]:
-        formula = literal
-        if isinstance(literal, Not):
-            formula = literal.formula
-        if isinstance(formula, AppliedPredicate):
-            matches = list(filter(lambda x: x.sort == sort, formula.args))
-            if not matches:
-                return None
-            return matches[0]
-        return None
-    
-    @property
-    def literals(self) -> Iterable[Formula]:
-        return filter(is_literal, self.formulas)
-    
-    @property
-    def branch_literals(self) -> Iterable[Formula]:
-        return filter(is_literal, self.branch_formulas)
-    
-    @property
-    def event_literals(self) -> Iterable[Formula]:
-        return filter(lambda x: self._get_entity_from_literal(x, Term.Sort.EVENT) is not None, self.literals)
-    
-    @property
-    def branch_event_literals(self) -> Iterable[Formula]:
-        return filter(lambda x: self._get_entity_from_literal(x, Term.Sort.EVENT) is not None, self.branch_literals)
-    
-    def get_branch_event_literals(self, event: Term) -> Iterable[Formula]:
-        return filter(lambda x: self._get_entity_from_literal(x, Term.Sort.EVENT) == event, self.branch_literals)
-
-    @property
-    def branch_model(self) -> Iterable[Formula]:
-        return (f for f in self.branch_formulas if type(f) in (AppliedPredicate,))
-
-    @property
-    def branch_entities(self) -> Iterable[Term]:
+    def branch_entities(self) -> Iterable[S.Term]:
+        """All entities (terms) from this node up to the root. Starting with this node"""
         if self.parent is None:
             return self.entities
-        return *self.entities, *self.parent.branch_entities
-    
-    @property
-    def annotations(self) -> Iterable[str]:
-        return filter(lambda x: not x is None, map(lambda f: f.annotation, self.formulas))
-    
-    @property
-    def branch_annotations(self) -> Iterable[str]:
-        if self.parent is None:
-            return self.annotations
-        return *self.annotations, *self.parent.branch_annotations
+        return itertools.chain(self.entities, self.parent.branch_entities)
 
-    def get_model(self) -> Iterable[Formula]:
-        return filter(is_literal, self.branch_formulas)
+    @property
+    def events(self) -> Iterable[S.Term]:
+        """All events in the current node"""
+        return filter(lambda entity: entity.sort == S.Term.Sort.EVENT, self.entities)
+
+    @property
+    def branch_events(self) -> Iterable[S.Term]:
+        """All events from this node up to the root. Starting with this node"""
+        if self.parent is None:
+            return filter(
+                lambda entity: entity.sort == S.Term.Sort.EVENT, self.entities
+            )
+        return filter(
+            lambda entity: entity.sort == S.Term.Sort.EVENT,
+            itertools.chain(self.entities, self.parent.branch_entities),
+        )
+
+    @property
+    def literals(self) -> Iterable[S.Literal]:
+        """All literals in the current node"""
+        return filter(S.is_literal, self.formulas)
+
+    @property
+    def branch_literals(self) -> Iterable[S.Literal]:
+        """All literals from this node up to the root. Starting with this node"""
+        return filter(S.is_literal, self.branch_formulas)
+
+    @property
+    def event_info(self) -> Iterable[EventInformation]:
+        """List of event info in the current node"""
+        return self._get_event_information_from_literals_list(self.literals)
+
+    @property
+    def branch_event_info(self) -> Iterable[EventInformation]:
+        """List of event info from this node up to the root."""
+        return self._get_event_information_from_literals_list(self.branch_literals)
 
     @staticmethod
-    def merge(*tableaus: Iterable["Tableau"], parent: "Tableau" = None) -> "Tableau":
-        formulas = []
-        entities = []
-        closing = False
-        for t in tableaus:
-            [formulas.append(f) for f in t.formulas if f not in formulas]
-            [entities.append(c) for c in t.entities if c not in entities]
-            if t.closing:
-                closing = True
-        return Tableau(formulas, entities, closing=closing, parent=parent)
+    def _get_event_information_from_literals_list(
+        literals_list: Iterable[S.Literal],
+    ) -> Iterable[EventInformation]:
+        """Return event information from the input list of literals"""
+        event_information: Dict[S.Term, EventInformation] = {}
+        for literal in literals_list:
+            # Add Event Agent
+            if isinstance(literal, S.Agent):
+                event = literal.event
+                info_record = event_information.get(event)
+                if info_record is None:
+                    info_record = EventInformation(event=event)
+                    event_information[event] = info_record
+                info_record.positive_agents.append(literal)
+            # Add Event Type
+            elif isinstance(literal, S.Type_):
+                event = literal.event
+                info_record = event_information.get(event)
+                if info_record is None:
+                    info_record = EventInformation(event=event)
+                    event_information[event] = info_record
+                info_record.positive_types.append(literal)
+            elif isinstance(literal, S.Not):
+                # Add negative Event Agent
+                if isinstance(literal.formula, S.Agent):
+                    event = literal.formula.event
+                    info_record = event_information.get(event)
+                    if info_record is None:
+                        info_record = EventInformation(event=event)
+                        event_information[event] = info_record
+                    info_record.negative_agents.append(literal)
+                # Add negative Event Type
+                elif isinstance(literal.formula, S.Type_):
+                    event = literal.formula.event
+                    info_record = event_information.get(event)
+                    if info_record is None:
+                        info_record = EventInformation(event=event)
+                        event_information[event] = info_record
+                    info_record.negative_types.append(literal)
+        return event_information.values()
 
-    def copy(self) -> "Tableau":
-        copy = Tableau.merge(self)
-        copy.parent = self.parent
-        return copy
-
-    @property
-    def _str(self) -> str:
-        return f"{' $ '.join(str(x) for x in self.formulas)} | {' $ '.join(str(x) for x in self.entities)}"
-
-    def _sorted_str(self) -> str:
-        sorted_f = [str(x) for x in self.branch_formulas]
-        sorted_f.sort()
-        sorted_e = [str(x) for x in self.branch_entities]
-        sorted_e.sort()
-        return f"{' $ '.join(sorted_f)} §§ {' $ '.join(sorted_e)}"
-
-    def __str__(self) -> str:
-        return str(
-            {
-                "formulas": [str(x) for x in self.formulas],
-                "entities": [str(x) for x in self.entities],
-            }
+    @classmethod
+    def merge(
+        cls, *tableaus: "Tableau", parent: Optional["Tableau"] = None
+    ) -> "Tableau":
+        # Collect all unique formulas
+        formulas = set(
+            itertools.chain(*map(lambda tableau: tableau.formulas, tableaus))
         )
+        # Collect all entities
+        entities = set(
+            itertools.chain(*map(lambda tableau: tableau.entities, tableaus))
+        )
+        # Create a tableau from the merged formulas and entities, with the passed parent
+        merged_tableau = Tableau(formulas, entities, parent, False)
+        # TODO: Check if the resulting tableau is a closing tableau, by checking for contradictions at the resulting tableau
+        return merged_tableau
