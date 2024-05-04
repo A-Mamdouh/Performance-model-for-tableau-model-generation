@@ -25,6 +25,7 @@ __all__ = (
     "ForallF",
     "Exists",
     "ExistsF",
+    "Literal",
     "LogicalConstant",
     "True_",
     "False_",
@@ -58,7 +59,7 @@ class Term(ABC):
         return False
 
     def __hash__(self) -> int:
-        return hash(self.__dict__.items())
+        return hash(str(self))
 
 
 class Constant(Term):
@@ -88,6 +89,18 @@ class Constant(Term):
                 return f"Agent({self.name})"
             case _:
                 raise ValueError(f"Undefined constant sort: {self.sort}")
+
+    @classmethod
+    def Event(cls, name: Optional[str] = None) -> "Constant":
+        return cls(Term.Sort.EVENT, name)
+
+    @classmethod
+    def Agent(cls, name: Optional[str] = None) -> "Constant":
+        return cls(Term.Sort.AGENT, name)
+
+    @classmethod
+    def Type(cls, name: Optional[str] = None) -> "Constant":
+        return cls(Term.Sort.TYPE, name)
 
 
 class Variable(Term):
@@ -133,14 +146,14 @@ class Formula(ABC):
         return False
 
     def __hash__(self) -> int:
-        return hash(self.__dict__.items())
-    
+        return hash(str(self))
+
     def __add__(self, other) -> "Or":
         return Or(self, other)
-    
+
     def __mul__(self, other) -> "And":
         return And(self, other)
-    
+
     def __neg__(self) -> "Not":
         return Not(self)
 
@@ -151,7 +164,7 @@ class Predicate:
     arity: int
 
     def __str__(self) -> str:
-        return f"{self.name}\{self.arity}"
+        return f"{self.name}\\{self.arity}"
 
     def __call__(self, *args: List[Term]) -> "AppliedPredicate":
         return AppliedPredicate(self, args)
@@ -178,6 +191,9 @@ class AppliedPredicate(Formula):
                 return all(a1 == a2 for a1, a2 in zip(self.args, o2.args))
         return False
 
+    def __hash__(self) -> int:
+        return hash(str(self))
+
 
 class LogicalConstant(AppliedPredicate):
     def __init__(self, name):
@@ -201,6 +217,9 @@ class And(Formula):
             return self.left == o2.left and self.right == o2.right
         return False
 
+    def __hash__(self) -> int:
+        return hash(str(self))
+
 
 @dataclass
 class Not(Formula):
@@ -216,6 +235,9 @@ class Not(Formula):
         if isinstance(o2, Not):
             return self.formula == o2.formula
         return False
+
+    def __hash__(self) -> int:
+        return hash(str(self))
 
 
 class Or(Not):
@@ -283,6 +305,9 @@ class PartialFormula:
             return self(v) == o2(v)
         return False
 
+    def __hash__(self) -> int:
+        return hash(str(self))
+
 
 @dataclass
 class QuantifiedFormula(Formula):
@@ -315,6 +340,9 @@ class QuantifiedFormula(Formula):
                     self.variable
                 )
         return False
+
+    def __hash__(self) -> int:
+        return hash(str(self))
 
 
 @dataclass
@@ -356,6 +384,9 @@ class FocusQuantifiedFormula(Formula):
                     self.variable
                 )
         return False
+
+    def __hash__(self) -> int:
+        return hash(str(self))
 
 
 class Forall(QuantifiedFormula):
@@ -467,6 +498,14 @@ class Type_(AppliedPredicate):
     def __init__(self, event: Term, type_: Term):
         super().__init__(Type_._type_, [event, type_])
 
+    @property
+    def event(self) -> Term:
+        return self.args[0]
+
+    @property
+    def type_(self) -> Term:
+        return self.args[1]
+
 
 if __name__ == "__main__":
     p = Predicate("p", 4)
@@ -480,3 +519,5 @@ if __name__ == "__main__":
         Term.Sort.EVENT,
     )
     print(f)
+
+Literal = AppliedPredicate | Not
