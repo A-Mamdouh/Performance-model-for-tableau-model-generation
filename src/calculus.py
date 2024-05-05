@@ -27,6 +27,14 @@ def check_contradiction(tableau: T.Tableau) -> bool:
         types = list(map(lambda literal: literal.type_, event_info.positive_types))
         if len(types) > 1:
             return True
+    # Check equality violations
+    for formula in tableau.formulas:
+        if isinstance(formula, S.Eq):
+            if formula.left != formula.right:
+                return True
+        if isinstance(formula, S.Not) and isinstance(formula.formula, S.Eq):
+            if formula.formula.left == formula.formula.right:
+                return True
     return False
 
 
@@ -40,6 +48,23 @@ def try_and_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
         f for conj in conjunctions for f in (conj.left, conj.right)
     ).difference(set(tableau.branch_formulas))
     # If output is not empty, return new tableau
+    if output_formulas:
+        return T.Tableau(formulas=output_formulas, parent=tableau)
+    return None
+
+
+def try_double_negation(tableau: T.Tableau) -> Optional[T.Tableau]:
+    """Return child tableau with a single depth of double negations removed. Only adds unique formulas to the branch. Returns None if no double negations exist"""
+    double_negations: filter[S.Not] = filter(
+        lambda formula: isinstance(formula, S.Not)
+        and isinstance(formula.formula, S.Not),
+        tableau.formulas,
+    )
+    # Get output formulas set and remove branch formulas
+    output_formulas = set(
+        map(lambda f: f.formula.formula, double_negations)
+    ).difference(tableau.branch_formulas)
+    # Return output if new formulas exist
     if output_formulas:
         return T.Tableau(formulas=output_formulas, parent=tableau)
     return None

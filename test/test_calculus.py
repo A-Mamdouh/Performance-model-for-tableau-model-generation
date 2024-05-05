@@ -1,4 +1,5 @@
 import itertools
+from typing import Iterable
 import src.calculus as C
 import src.syntax as S
 
@@ -157,6 +158,25 @@ class TestContradictions:
                 )
             assert all(map(C.check_contradiction, tableaus[i:]))
 
+    def test_equality_contradictions(self) -> None:
+        """Check if incorrect equalities are detected"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            c1 = S.Constant.Agent()
+            c2 = S.Constant.Agent()
+            tableaus[i].formulas = *tableaus[i].formulas, S.Eq(c1, c2)
+            assert C.check_contradiction(tableaus[i])
+
+    def test_inequality_contradictions(self) -> None:
+        """Check if incorrect inequalities are detected"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            c1 = S.Constant.Agent()
+            tableaus[i].formulas = *tableaus[i].formulas, S.Not(S.Eq(c1, c1))
+            assert C.check_contradiction(tableaus[i])
+
 
 class TestConjunctionElim:
     def test_only_current_leaf_is_checked_for_conjunctions(self) -> None:
@@ -241,7 +261,7 @@ class TestConjunctionElim:
     def test_output_tableau_parent_is_input_tableau(self) -> None:
         """Check if the parent of the output tableau is the input tableau"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent) for _ in range(1)]
+        formulas = [p(S.Constant.Agent()) for _ in range(1)]
         conjunctions = [S.And(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(chain_length):
@@ -270,3 +290,84 @@ class TestConjunctionElim:
                 lambda f: not isinstance(f, S.And), tableaus[i].formulas
             )
             assert C.try_and_elim(tableaus[i]) is None
+
+
+class TestDoubleNegation:
+    @staticmethod
+    def _remove_double_negations(formulas: Iterable[S.Formula]) -> Iterable[S.Formula]:
+        return filter(
+            lambda f: not (isinstance(f, S.Not) and isinstance(f.formula, S.Not)),
+            formulas,
+        )
+
+    def test_double_negation_removed(self) -> None:
+        """Test that double nedation removes double negations"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        d_negations = [S.Not(S.Not(f)) for f in formulas]
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add double negations and remove existing ones
+            tableaus[i].formulas = (
+                *self._remove_double_negations(tableaus[i].formulas),
+                *d_negations,
+            )
+            output = C.try_double_negation(tableaus[i])
+            # Check that the double negated formulas are present
+            assert all(formula in output.formulas for formula in formulas)
+            # Check that only the double negated formulas are present
+            assert all(formula in formulas for formula in output.formulas)
+
+    def test_double_negation_returns_none_when_no_double_negations(self) -> None:
+        """Check that None is returned when no double negations are on node"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Remove double negations
+            tableaus[i].formulas = self._remove_double_negations(tableaus[i].formulas)
+            output = C.try_double_negation(tableaus[i])
+            assert output is None
+            # Try again with empty tableaus
+            tableaus = list(
+                tableau_utils.create_tableau_chain(chain_length, formulas=[])
+            )
+            # Remove double negations
+            tableaus[i].formulas = self._remove_double_negations(tableaus[i].formulas)
+            output = C.try_double_negation(tableaus[i])
+            assert output is None
+
+    def test_double_negation_correct_parent(self) -> None:
+        """Check that the output tableau has the correct parent set"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        d_negations = [S.Not(S.Not(f)) for f in formulas]
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add double negations and remove existing ones
+            tableaus[i].formulas = (
+                *self._remove_double_negations(tableaus[i].formulas),
+                *d_negations,
+            )
+            output = C.try_double_negation(tableaus[i])
+            assert output.parent is tableaus[i]
+
+    def test_double_negation_unique_formulas(self) -> None:
+        """Check that the output tableau has unique formulas (no branch or local duplicates)"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        d_negations = [S.Not(S.Not(f)) for f in formulas]
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add double negations and remove existing ones
+            tableaus[i].formulas = (
+                *self._remove_double_negations(tableaus[i].formulas),
+                *d_negations,
+            )
+            output = C.try_double_negation(tableaus[i])
+            assert len(set(output.formulas)) == len(output.formulas)
+            assert len(
+                set(output.formulas).difference(tableaus[i].branch_formulas)
+            ) == len(output.formulas)

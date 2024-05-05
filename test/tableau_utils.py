@@ -10,6 +10,11 @@ def create_tableau_params(**overrides) -> Dict[str, Any]:
     agents = [S.Constant.Agent() for _ in range(3)]
     events = [S.Constant.Event() for _ in range(3)]
     formulas = [S.True_, S.Or(S.True_, S.False_)]
+    for event, agent, type_ in zip(events, agents, types):
+        formulas.append(S.Agent(event, agent))
+        formulas.append(S.Type_(event, type_))
+    formulas.append(S.Eq(S.True_, S.True_))
+    formulas.append(S.Not(S.Eq(S.True_, S.False_)))
     entities = [*events, *types, *agents]
     for i in range(3):
         formulas.append(
