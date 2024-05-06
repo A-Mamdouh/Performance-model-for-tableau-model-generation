@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Callable, Iterable, List, Optional, Tuple
 import src.syntax as S
 import src.tableau as T
+import itertools
 
 
 def check_contradiction(tableau: T.Tableau) -> bool:
@@ -68,3 +69,94 @@ def try_double_negation(tableau: T.Tableau) -> Optional[T.Tableau]:
     if output_formulas:
         return T.Tableau(formulas=output_formulas, parent=tableau)
     return None
+
+
+def try_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
+    """Return child tableau after applying forall axioms on branch to entities in this node. Returns None if no new branch-unique formulas are added"""
+    axioms: Iterable[S.Forall] = filter(
+        lambda formula: isinstance(formula, S.Forall), tableau.branch_formulas
+    )
+    output_formulas: List[S.Formula] = []
+    for axiom in axioms:
+        # Filter node entities by sort, since the logic is sorted
+        applicable_entities = filter(
+            lambda term: term.sort == axiom.sort, tableau.entities
+        )
+        # Map applicable terms over the quantified partial formula
+        output_formulas.extend(
+            lambda term: axiom.partial_formula(term), applicable_entities
+        )
+    output_formulas = set(output_formulas).difference(tableau.branch_formulas)
+    if output_formulas:
+        return T.Tableau(formulas=output_formulas, parent=tableau)
+    return None
+
+
+def try_focused_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
+    """Return child tableau after applying focused forall axioms on branch to entities in this node. Returns None if no new branch-unique formulas are added"""
+    axioms: Iterable[S.ForallF] = filter(
+        lambda formula: isinstance(formula, S.ForallF), tableau.branch_formulas
+    )
+    output_formulas: List[S.Formula] = []
+    for axiom in axioms:
+        # Filter node entities by sort, since the logic is sorted
+        applicable_entities = filter(
+            lambda term: term.sort == axiom.sort, tableau.entities
+        )
+        # Filter applicable entities to match the unfocused part
+        applicable_entities = filter(
+            lambda term: axiom.unfocused_partial(term) in tableau.branch_formulas,
+            applicable_entities,
+        )
+        # Map applicable terms over the focused partial formula
+        output_formulas.extend(
+            lambda term: axiom.focused_partial(term), applicable_entities
+        )
+    output_formulas = set(output_formulas).difference(tableau.branch_formulas)
+    if output_formulas:
+        return T.Tableau(formulas=output_formulas, parent=tableau)
+    return None
+
+
+def try_or_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
+    """Apply or elimination (also works for the de-morgan's equivalent), then return an iterable of the product of branches"""
+    disjunctions: Iterable[S.Not] = filter(
+        lambda f: isinstance(f, S.Not) and isinstance(f.formula, S.And),
+        tableau.formulas,
+    )
+    disjuncts: Iterable[Tuple[S.Formula, S.Formula]] = map(
+        lambda f: (S.Not(f.formula.left), S.Not(f.formula.right)), disjunctions
+    )
+    # Remove double negations
+    remove_double_negations: Callable[[S.Not], S.Formula] = (  # noqa: E731
+        lambda f: f.formula.formula if isinstance(f.formula, S.Not) else f
+    )
+    disjuncts = map(
+        lambda pair: (
+            remove_double_negations(pair[0]),
+            remove_double_negations(pair[1]),
+        ),
+        disjuncts,
+    )
+    # Mix branches
+    branches = map(
+        lambda branch: set(branch).difference(tableau.branch_formulas),
+        itertools.product(*disjuncts),
+    )
+    # Remove empty branches
+    branches = filter(lambda branch: len(branch) > 0, branches)
+    # Remove repeatd branches
+    branches = set(
+        map(
+            lambda branch_set: tuple(sorted(branch_set, key=S.Formula.__str__)),
+            branches,
+        )
+    )
+    # Map branches to tableaus
+    if branches:
+        return map(lambda branch: T.Tableau(branch, parent=tableau), branches)
+    return None
+
+
+def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
+    pass

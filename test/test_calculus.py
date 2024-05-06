@@ -1,5 +1,7 @@
 import itertools
-from typing import Iterable
+from typing import Iterable, List, Set
+
+import pytest
 import src.calculus as C
 import src.syntax as S
 
@@ -371,3 +373,163 @@ class TestDoubleNegation:
             assert len(
                 set(output.formulas).difference(tableaus[i].branch_formulas)
             ) == len(output.formulas)
+
+
+class TestDisjunctionElim:
+    def test_only_current_node_is_checked_for_disjunctions(self) -> None:
+        """Make sure only conjuncts from the passed node are resolved"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
+        formulas2 = [p(S.Constant.Agent()) for _ in range(2)]
+        disjunctions2 = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
+        chain_length = 4
+        for i in range(chain_length):
+            for j in range(chain_length):
+                if j == i:
+                    continue
+                tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+                # Add disjunctions and remove existing ones
+                tableaus[i].formulas = (
+                    filter(lambda f: not isinstance(f, S.Or), tableaus[i].formulas),
+                    *disjunctions,
+                )
+                tableaus[j].formulas = (
+                    filter(lambda f: not isinstance(f, S.Or), tableaus[i].formulas),
+                    *disjunctions2,
+                )
+                output = C.try_or_elim(tableaus[i])
+                for tableau in output:
+                    assert all(formula not in tableau.formulas for formula in formulas2)
+
+    def test_only_unique_formluas_are_added(self) -> None:
+        """Check if new formulas are checked for uniqueness against each other"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
+        chain_length = 4
+        for i in range(1, chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add disjunctions and remove existing ones
+            tableaus[i].formulas = (
+                filter(lambda f: not isinstance(f, S.Or), tableaus[i].formulas),
+                *disjunctions,
+            )
+            tableaus[i - 1].formulas = *tableaus[i - 1].formulas, formulas[0]
+            output = C.try_or_elim(tableaus[i])
+            for tableau in output:
+                assert len(list(tableau.formulas)) == len(set(tableau.formulas))
+
+    def test_only_branch_unique_formluas_are_added(self) -> None:
+        """Check if new formulas are checked for uniqueness against the branch formulas"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
+        chain_length = 4
+        for i in range(1, chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add disjunctions and remove existing ones
+            tableaus[i].formulas = (
+                filter(lambda f: not isinstance(f, S.Or), tableaus[i].formulas),
+                *disjunctions,
+            )
+            tableaus[i - 1].formulas = *tableaus[i - 1].formulas, formulas[0]
+            output = C.try_or_elim(tableaus[i])
+            for tableau in output:
+                assert formulas[0] not in tableau.formulas
+
+    def test_all_disjuncts_are_resolved(self) -> None:
+        """Check if all conjuncts are produced, and output tableau only has the conjuncts"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(4)]
+        # Only add unique pairs (no order)
+        disjunctions: List[S.Or] = []
+        for i in range(len(formulas)):
+            for j in range(i + 1, len(formulas)):
+                disjunctions.append(S.Or(formulas[i], formulas[j]))
+        # Get all possible unique branches. All possible branches are 2^#(disjunctions)
+        expected_outputs: List[Set[S.Formula]] = []
+        for i in range(int(2 ** len(disjunctions))):
+            branch = set()
+            for j, disjunction in enumerate(disjunctions):
+                if (1 << j) & i:
+                    branch.add(disjunction.left)
+                else:
+                    branch.add(disjunction.right)
+            if branch not in expected_outputs:
+                expected_outputs.append(branch)
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add disjunctions and remove existing ones
+            tableaus[i].formulas = (
+                filter(lambda f: not isinstance(f, S.And), tableaus[i].formulas),
+                *disjunctions,
+            )
+            output = C.try_or_elim(tableaus[i])
+            assert output is not None
+            seen_outputs = []
+            for tableau in output:
+                # Only the disjuncts exist
+                assert all(formula in formulas for formula in tableau.formulas)
+                # Output matches one of the expected outputs
+                formulas_set = set(tableau.formulas)
+                assert formulas_set in expected_outputs
+                assert formulas_set not in seen_outputs
+                seen_outputs.append(formulas_set)
+            # Check if all expected outputs were covered
+            assert len(seen_outputs) == len(expected_outputs)
+
+    def test_output_tableau_parent_is_input_tableau(self) -> None:
+        """Check if the parent of the output tableau is the input tableau"""
+        p = S.Predicate("P", 1)
+        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add disjunctions
+            tableaus[i].formulas = *tableaus[i].formulas, *disjunctions
+            output = C.try_or_elim(tableau=tableaus[i])
+            for tableau in output:
+                assert tableau.parent is tableaus[i]
+
+    def test_returns_none_when_passed_empty(self) -> None:
+        """Check if None is returned when the node has no formulas"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Empty out formulas
+            tableaus[i].formulas = []
+            assert C.try_or_elim(tableaus[i]) is None
+
+    def test_returns_none_when_passed_no_conjunctions(self) -> None:
+        """Check if None is returned when the node has no conjunctions"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Filter out conjunctions
+            tableaus[i].formulas = filter(
+                lambda f: not isinstance(f, S.Or), tableaus[i].formulas
+            )
+            assert C.try_or_elim(tableaus[i]) is None
+
+
+class TestForAll:
+    def test_something(self) -> None:
+        pytest.fail()
+
+
+class TestExistsAll:
+    def test_something(self) -> None:
+        pytest.fail()
+
+
+class TestForAllFocused:
+    def test_something(self) -> None:
+        pytest.fail()
+
+
+class TestExistsAllFocused:
+    def test_something(self) -> None:
+        pytest.fail()
