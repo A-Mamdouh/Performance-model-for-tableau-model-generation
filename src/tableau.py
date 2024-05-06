@@ -1,3 +1,6 @@
+"""Implementation of the Tableau node data structure and helping classes"""
+
+# pylint: disable=invalid-name
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Optional
 import itertools
@@ -9,6 +12,8 @@ __all__ = ("Tableau",)
 
 @dataclass
 class EventInformation:
+    """Information about an event in a tableau branch"""
+
     event: S.Term
     positive_types: Iterable[S.Type_] = field(default_factory=list)
     positive_agents: Iterable[S.Agent] = field(default_factory=list)
@@ -17,6 +22,7 @@ class EventInformation:
 
     @property
     def all_literals(self) -> Iterable[S.Literal]:
+        """All literals containing the event"""
         return (
             *self.positive_types,
             *self.positive_agents,
@@ -27,7 +33,9 @@ class EventInformation:
 
 @dataclass
 class Tableau:
-    """This class represents a tableau node. It contains formulas, entities and a reference to the node's parent"""
+    """This class represents a tableau node.
+    It contains formulas, entities and a reference to the node's parent
+    """
 
     #: list of formulas that exist in this node
     formulas: Iterable[S.Formula] = field(default_factory=list)
@@ -135,6 +143,7 @@ class Tableau:
     def merge(
         cls, *tableaus: "Tableau", parent: Optional["Tableau"] = None
     ) -> "Tableau":
+        """Merge given tableaus into one tableau containing all unique formulas and entities"""
         # Collect all unique formulas
         formulas = set(
             itertools.chain(*map(lambda tableau: tableau.formulas, tableaus))
@@ -145,5 +154,4 @@ class Tableau:
         )
         # Create a tableau from the merged formulas and entities, with the passed parent
         merged_tableau = Tableau(formulas, entities, parent, False)
-        # TODO: Check if the resulting tableau is a closing tableau, by checking for contradictions at the resulting tableau
         return merged_tableau

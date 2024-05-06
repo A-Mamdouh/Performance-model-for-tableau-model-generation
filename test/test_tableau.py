@@ -1,14 +1,19 @@
-import src.syntax as S
-import src.tableau as T
+"""Testing Tableau data structure implementation"""
 
 import itertools
 from test import tableau_utils
 
+import src.syntax as S
+import src.tableau as T
+
 
 class TestTableauMembers:
+    """Check if members in Tableau class behave as expected"""
+
     def test_branch_entities_correct(self) -> None:
         """Check if branch_ members are retrieved properly"""
-        _, second, third, fourth = tableau_utils.create_tableau_chain()
+        # pylint: disable=unbalanced-tuple-unpacking
+        second, third, fourth = tableau_utils.create_tableau_chain()[1:]
         # Assert branch entities
         assert list(second.entities) == list(second.branch_entities)
         assert list(itertools.chain(third.entities, second.entities)) == list(
@@ -20,7 +25,8 @@ class TestTableauMembers:
 
     def test_branch_formulas_correct(self) -> None:
         """Check if branch_ members are retrieved properly"""
-        _, second, third, fourth = tableau_utils.create_tableau_chain()
+        # pylint: disable=unbalanced-tuple-unpacking
+        second, third, fourth = tableau_utils.create_tableau_chain()[1:]
         # Assert branch formulas
         assert list(second.formulas) == list(second.formulas)
         assert list(itertools.chain(third.formulas, second.formulas)) == list(
@@ -32,7 +38,8 @@ class TestTableauMembers:
 
     def test_branch_literals(self) -> None:
         """Check if branch_ members are retrieved properly"""
-        _, second, third, fourth = tableau_utils.create_tableau_chain()
+        # pylint: disable=unbalanced-tuple-unpacking
+        second, third, fourth = tableau_utils.create_tableau_chain()[1:]
         # Assert branch literals
         assert list(second.literals) == list(second.branch_literals)
         assert list(itertools.chain(third.literals, second.literals)) == list(
@@ -49,11 +56,13 @@ class TestTableauMembers:
 
 
 class TestTableauMethods:
+    """Check if methods in tableau node class behave as expected"""
+
     def test_tableau_merge_has_all_formulas(self) -> None:
         """Check if output merged tableau has all of the formulas of the merged tableaus"""
-        _, *tableaus = tableau_utils.create_tableau_chain(
-            start_empty=False, parent=None
-        )
+        tableaus = tableau_utils.create_tableau_chain(start_empty=False, parent=None)[
+            1:
+        ]
         merged = T.Tableau.merge(*tableaus)
         merged_formulas = list(merged.formulas)
         base_formulas = list(
@@ -64,9 +73,9 @@ class TestTableauMethods:
 
     def test_tableau_merge_has_only_base_formulas(self) -> None:
         """Check if output merged tableau has only formulas from the merged tableaus"""
-        _, *tableaus = tableau_utils.create_tableau_chain(
-            start_empty=False, parent=None
-        )
+        tableaus = tableau_utils.create_tableau_chain(start_empty=False, parent=None)[
+            1:
+        ]
         merged = T.Tableau.merge(*tableaus)
         merged_formulas = list(merged.formulas)
         base_formulas = list(
@@ -77,18 +86,18 @@ class TestTableauMethods:
 
     def test_tableau_merge_no_formula_repeats(self) -> None:
         """Check if output merged tableau has unique formulas"""
-        _, *tableaus = tableau_utils.create_tableau_chain(
-            start_empty=False, parent=None
-        )
+        tableaus = tableau_utils.create_tableau_chain(start_empty=False, parent=None)[
+            1:
+        ]
         merged = T.Tableau.merge(*tableaus)
         merged_formulas = list(merged.formulas)
         assert len(merged_formulas) == len(set(merged_formulas))
 
     def test_tableau_merge_has_all_entities(self) -> None:
         """Check if output merged tableau has all of the entities of the merged tableaus"""
-        _, *tableaus = tableau_utils.create_tableau_chain(
-            start_empty=False, parent=None
-        )
+        tableaus = tableau_utils.create_tableau_chain(start_empty=False, parent=None)[
+            1:
+        ]
         merged = T.Tableau.merge(*tableaus)
         merged_entities = list(merged.entities)
         base_entities = list(
@@ -99,9 +108,9 @@ class TestTableauMethods:
 
     def test_tableau_merge_has_only_base_entities(self) -> None:
         """Check if output merged tableau has only entities from the merged tableaus"""
-        _, *tableaus = tableau_utils.create_tableau_chain(
-            start_empty=False, parent=None
-        )
+        tableaus = tableau_utils.create_tableau_chain(start_empty=False, parent=None)[
+            1:
+        ]
         merged = T.Tableau.merge(*tableaus)
         merged_entities = list(merged.entities)
         base_entities = list(
@@ -112,9 +121,9 @@ class TestTableauMethods:
 
     def test_tableau_merge_no_entities_repeats(self) -> None:
         """Check if output merged tableau has unique entities"""
-        _, *tableaus = tableau_utils.create_tableau_chain(
-            start_empty=False, parent=None
-        )
+        tableaus = tableau_utils.create_tableau_chain(start_empty=False, parent=None)[
+            1:
+        ]
         merged = T.Tableau.merge(*tableaus)
         merged_entities = list(merged.formulas)
         assert len(merged_entities) == len(set(merged_entities))

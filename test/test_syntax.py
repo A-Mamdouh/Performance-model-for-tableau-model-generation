@@ -1,17 +1,25 @@
+"""
+Testing syntax implementation
+"""
+
 from src import syntax as S
 
 
 class TestOperatorHeirarchy:
+    """Check if operator built on not and _and_ are also accessible in their simplified forms"""
+
     def test_or_is_not_and(self):
         """Check that Or(l, r) is an instance of Not(And(Not(l), Not(r)))"""
         f = S.Or(S.True_, S.False_)
         # Check if f = Or(True, False) can be read as Not(And(Not(True), Not(False)))
         assert isinstance(f, S.Not)
         assert isinstance(f.formula, S.And)
-        assert isinstance(f.formula.left, S.Not)
-        assert f.formula.left.formula is f.left
-        assert isinstance(f.formula.right, S.Not)
-        assert f.formula.right.formula is f.right
+        inner_formula: S.And = f.formula
+        # pylint: disable=E1101
+        assert isinstance(inner_formula.left, S.Not)
+        assert inner_formula.left.formula is f.left
+        assert isinstance(inner_formula.right, S.Not)
+        assert inner_formula.right.formula is f.right
 
     def test_impl_is_not_and(self):
         """Check that Implicaties(l, r) is an instance of Or(Not(l), r)"""
@@ -21,6 +29,3 @@ class TestOperatorHeirarchy:
         assert isinstance(f.left, S.Not)
         assert f.left.formula is f.pre
         assert f.right is f.post
-
-    # TODO: Test equality and hashing
-    # TODO: Test quantifiers

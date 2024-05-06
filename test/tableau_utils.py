@@ -1,7 +1,9 @@
-import src.syntax as S
-import src.tableau as T
+"""Utility functions for tableau creation"""
 
 from typing import Any, Dict, Iterable
+
+import src.syntax as S
+import src.tableau as T
 
 
 def create_tableau_params(**overrides) -> Dict[str, Any]:
@@ -21,7 +23,7 @@ def create_tableau_params(**overrides) -> Dict[str, Any]:
             S.And(S.Type_(events[i], types[i]), S.Agent(events[i], agents[i]))
         )
     return {
-        **dict(formulas=formulas, entities=entities),
+        **{"formulas": formulas, "entities": entities},
         **overrides,
     }
 

@@ -1,11 +1,17 @@
+"""Implementation of tableau calculus rules"""
+
+# pylint: disable=invalid-name
+import itertools
 from typing import Callable, Iterable, List, Optional, Tuple
+
 import src.syntax as S
 import src.tableau as T
-import itertools
 
 
 def check_contradiction(tableau: T.Tableau) -> bool:
     """Return True if the current tableau branch is a closed branch"""
+    # pylint: disable=too-many-branches
+    # pylint: disable=R0911:too-many-return-statements
     branch_formulas = list(tableau.branch_formulas)
     # Check if the branch contains false
     if S.False_ in branch_formulas:
@@ -40,8 +46,10 @@ def check_contradiction(tableau: T.Tableau) -> bool:
 
 
 def try_and_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
-    """Return child tableau with new conjuncts from the current tableau conjunctions. Only adds conjuncts if they are unique to the branch"""
-    conjunctions: filter[S.And] = filter(
+    """Return child tableau with new conjuncts from the current tableau conjunctions.
+    Only adds conjuncts if they are unique to the branch
+    """
+    conjunctions: Iterable[S.And] = filter(
         lambda formula: isinstance(formula, S.And), tableau.formulas
     )
     # Collect unique conjuncts
@@ -55,8 +63,10 @@ def try_and_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
 
 
 def try_double_negation(tableau: T.Tableau) -> Optional[T.Tableau]:
-    """Return child tableau with a single depth of double negations removed. Only adds unique formulas to the branch. Returns None if no double negations exist"""
-    double_negations: filter[S.Not] = filter(
+    """Return child tableau with a single depth of double negations removed.
+    Only adds unique formulas to the branch. Returns None if no double negations exist
+    """
+    double_negations: Iterable[S.Not] = filter(
         lambda formula: isinstance(formula, S.Not)
         and isinstance(formula.formula, S.Not),
         tableau.formulas,
@@ -72,20 +82,21 @@ def try_double_negation(tableau: T.Tableau) -> Optional[T.Tableau]:
 
 
 def try_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
-    """Return child tableau after applying forall axioms on branch to entities in this node. Returns None if no new branch-unique formulas are added"""
+    """Return child tableau after applying forall axioms on branch to entities in this node.
+    Returns None if no new branch-unique formulas are added
+    """
     axioms: Iterable[S.Forall] = filter(
         lambda formula: isinstance(formula, S.Forall), tableau.branch_formulas
     )
     output_formulas: List[S.Formula] = []
     for axiom in axioms:
         # Filter node entities by sort, since the logic is sorted
+        # pylint: disable=W0640:cell-var-from-loop
         applicable_entities = filter(
             lambda term: term.sort == axiom.sort, tableau.entities
         )
         # Map applicable terms over the quantified partial formula
-        output_formulas.extend(
-            lambda term: axiom.partial_formula(term), applicable_entities
-        )
+        output_formulas.extend(axiom.partial_formula, applicable_entities)
     output_formulas = set(output_formulas).difference(tableau.branch_formulas)
     if output_formulas:
         return T.Tableau(formulas=output_formulas, parent=tableau)
@@ -93,13 +104,16 @@ def try_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
 
 
 def try_focused_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
-    """Return child tableau after applying focused forall axioms on branch to entities in this node. Returns None if no new branch-unique formulas are added"""
+    """Return child tableau after applying focused forall axioms on branch to entities in this node.
+    Returns None if no new branch-unique formulas are added
+    """
     axioms: Iterable[S.ForallF] = filter(
         lambda formula: isinstance(formula, S.ForallF), tableau.branch_formulas
     )
     output_formulas: List[S.Formula] = []
     for axiom in axioms:
         # Filter node entities by sort, since the logic is sorted
+        # pylint: disable=cell-var-from-loop
         applicable_entities = filter(
             lambda term: term.sort == axiom.sort, tableau.entities
         )
@@ -109,9 +123,7 @@ def try_focused_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
             applicable_entities,
         )
         # Map applicable terms over the focused partial formula
-        output_formulas.extend(
-            lambda term: axiom.focused_partial(term), applicable_entities
-        )
+        output_formulas.extend(axiom.focused_partial, applicable_entities)
     output_formulas = set(output_formulas).difference(tableau.branch_formulas)
     if output_formulas:
         return T.Tableau(formulas=output_formulas, parent=tableau)
@@ -119,7 +131,9 @@ def try_focused_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
 
 
 def try_or_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
-    """Apply or elimination (also works for the de-morgan's equivalent), then return an iterable of the product of branches"""
+    """Apply or elimination (also works for the de-morgan's equivalent),
+    then return an iterable of the product of branches
+    """
     disjunctions: Iterable[S.Not] = filter(
         lambda f: isinstance(f, S.Not) and isinstance(f.formula, S.And),
         tableau.formulas,
@@ -156,7 +170,3 @@ def try_or_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     if branches:
         return map(lambda branch: T.Tableau(branch, parent=tableau), branches)
     return None
-
-
-def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
-    pass
