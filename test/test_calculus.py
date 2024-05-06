@@ -524,21 +524,91 @@ class TestDisjunctionElim:
             assert C.try_or_elim(tableaus[i]) is None
 
 
-# class TestForAll:
-#     def test_something(self) -> None:
-#         pytest.fail()
+class TestForAll:
+    """Test ForAll elim rule"""
+
+    def test_returns_none_on_empty_tableau(self) -> None:
+        """Test if forall-elim rule returns None when the input tableau has no formulas"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(
+                tableau_utils.create_tableau_chain(chain_length, formulas=[])
+            )
+            # Remove formulas
+            tableaus[i].formulas = []
+            assert C.try_forall_elim(tableaus[i]) is None
+
+    def test_returns_none_on_tableau_with_no_foralls(self) -> None:
+        """Test if forall-elim rule returns None when the input tableau has no forall formulas"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Add axioms and remove existing ones
+            for tableau in tableaus:
+                tableau.formulas = filter(
+                    lambda f: not isinstance(f, S.Forall), tableau.formulas
+                )
+            assert C.try_forall_elim(tableaus[i]) is None
+
+    def test_returns_all_instances_of_axioms(self) -> None:
+        """Test if all entities of the axiom sort are instantiated"""
+        chain_length = 4
+        axioms = [
+            S.Forall(S.Predicate(f"p_{i}", 1), S.Term.Sort.EVENT) for i in range(4)
+        ]
+        for i in range(chain_length):
+            for j in range(i + 1, chain_length):
+                tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+                # Add axioms and remove existing ones
+                for tableau in tableaus:
+                    tableau.formulas = filter(
+                        lambda f: not isinstance(f, S.Forall), tableau.formulas
+                    )
+                tableaus[i].formulas = *tableaus[i].formulas, *axioms
+                output = C.try_forall_elim(tableaus[j])
+                expected_output = []
+                for axiom in axioms:
+                    # pylint: disable=cell-var-from-loop
+                    expected_output.extend(
+                        map(
+                            axiom.partial_formula,
+                            filter(
+                                lambda e: e.sort == axiom.sort,
+                                tableaus[j].branch_entities,
+                            ),
+                        )
+                    )
+                # Assert that all entities of the axiom sort are produced
+                # pylint: disable=cell-var-from-loop
+                assert all(map(lambda e: e in output.formulas, expected_output))
+                # Assert that only the axiom productions are in the output
+                assert all(map(lambda e: e in expected_output, output.formulas))
 
 
-# class TestExistsAll:
-#     def test_something(self) -> None:
-#         pytest.fail()
+class TestForAllFocused:
+    """Test ForAllF elim rule"""
 
+    def test_returns_none_on_empty_tableau(self) -> None:
+        """Test if focused-forall-elim rule returns None when the input tableau has no formulas"""
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(
+                tableau_utils.create_tableau_chain(chain_length, formulas=[])
+            )
+            # Add disjunctions and remove existing ones
+            tableaus[i].formulas = []
+            assert C.try_focused_forall_elim(tableaus[i]) is None
 
-# class TestForAllFocused:
-#     def test_something(self) -> None:
-#         pytest.fail()
-
-
-# class TestExistsAllFocused:
-#     def test_something(self) -> None:
-#         pytest.fail()
+    def test_returns_none_on_tableau_with_no_foralls(self) -> None:
+        """Test if focusedforall-elim rule returns None,
+        when the input tableau has no forall formulas TODO
+        """
+        chain_length = 4
+        for i in range(chain_length):
+            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
+            # Remove focused axioms
+            for tableau in tableaus:
+                tableau.formulas = filter(
+                    lambda f: not isinstance(f, S.ForallF), tableau.formulas
+                )
+            assert C.try_focused_forall_elim(tableaus[i]) is None

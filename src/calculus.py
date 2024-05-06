@@ -93,10 +93,10 @@ def try_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
         # Filter node entities by sort, since the logic is sorted
         # pylint: disable=W0640:cell-var-from-loop
         applicable_entities = filter(
-            lambda term: term.sort == axiom.sort, tableau.entities
+            lambda term: term.sort == axiom.sort, tableau.branch_entities
         )
         # Map applicable terms over the quantified partial formula
-        output_formulas.extend(axiom.partial_formula, applicable_entities)
+        output_formulas.extend(map(axiom.partial_formula, applicable_entities))
     output_formulas = set(output_formulas).difference(tableau.branch_formulas)
     if output_formulas:
         return T.Tableau(formulas=output_formulas, parent=tableau)
@@ -113,17 +113,17 @@ def try_focused_forall_elim(tableau: T.Tableau) -> Optional[T.Tableau]:
     output_formulas: List[S.Formula] = []
     for axiom in axioms:
         # Filter node entities by sort, since the logic is sorted
-        # pylint: disable=cell-var-from-loop
+        # pylint: disable=W0640:cell-var-from-loop
         applicable_entities = filter(
-            lambda term: term.sort == axiom.sort, tableau.entities
+            lambda term: term.sort == axiom.sort, tableau.branch_entities
         )
-        # Filter applicable entities to match the unfocused part
+        # Filter out entities that do not match the unfocused part
         applicable_entities = filter(
-            lambda term: axiom.unfocused_partial(term) in tableau.branch_formulas,
+            lambda term: axiom.unfocused_partial(term) in tableau.branch_entities,
             applicable_entities,
         )
-        # Map applicable terms over the focused partial formula
-        output_formulas.extend(axiom.focused_partial, applicable_entities)
+        # Map applicable terms over the quantified partial formula
+        output_formulas.extend(map(axiom.focused_partial, applicable_entities))
     output_formulas = set(output_formulas).difference(tableau.branch_formulas)
     if output_formulas:
         return T.Tableau(formulas=output_formulas, parent=tableau)
