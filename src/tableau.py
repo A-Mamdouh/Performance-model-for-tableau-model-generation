@@ -155,3 +155,7 @@ class Tableau:
         # Create a tableau from the merged formulas and entities, with the passed parent
         merged_tableau = Tableau(formulas, entities, parent, False)
         return merged_tableau
+
+    def copy(self) -> "Tableau":
+        """Return a shallow copy of this tableau node"""
+        return self.merge(self, parent=self.parent)
