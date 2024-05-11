@@ -13,7 +13,7 @@ class TestContradictions:
 
     def test_no_contradiction_ok_branch(self) -> None:
         """Check if no contradiction when passed an ok branch"""
-        assert not any(map(C.check_contradiction, tableau_utils.create_tableau_chain()))
+        assert all(map(C.is_branch_consistent, tableau_utils.create_tableau_chain()))
 
     def test_false_creates_contradiction(self) -> None:
         """Check if contradiction is detected when false is in the branch"""
@@ -22,7 +22,7 @@ class TestContradictions:
             tableaus = list(tableau_utils.create_tableau_chain(chain_length))
             tableau = tableaus[i]
             tableau.formulas = *tableau.formulas, S.False_
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
         # Check when there is only the False Formula
         for i in range(chain_length):
             tableaus = list(
@@ -30,7 +30,7 @@ class TestContradictions:
             )
             tableau = tableaus[i]
             tableau.formulas = *tableau.formulas, S.False_
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
 
     def test_not_true_creates_contradiction(self) -> None:
         """Check if contradiction is detected when -True is in the branch"""
@@ -44,7 +44,7 @@ class TestContradictions:
                 tableau.formulas = list(
                     filter(lambda f: f is not S.True_, tableau.formulas)
                 )
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
         # Check when there is only the -True Formula
         for i in range(chain_length):
             tableaus = list(
@@ -57,7 +57,7 @@ class TestContradictions:
                 tableau.formulas = list(
                     filter(lambda f: f is not S.True_, tableau.formulas)
                 )
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
 
     def test_f_and_not_f_contradiction(self) -> None:
         """Check if contradiction is detected when a formula and Not(formula) exist"""
@@ -69,6 +69,7 @@ class TestContradictions:
                 formula2 = S.Not(S.Or(S.True_, S.False_))
                 tableaus[i].formulas = *tableaus[i].formulas, formula1
                 tableaus[j].formulas = *tableaus[j].formulas, formula2
+                assert not any(map(C.is_branch_consistent, tableaus[max(i, j) :]))
         # Check again with just the contradiction in the branch
         for i in range(chain_length):
             for j in range(chain_length):
@@ -79,6 +80,7 @@ class TestContradictions:
                 formula2 = S.Not(S.Or(S.True_, S.False_))
                 tableaus[i].formulas = *tableaus[i].formulas, formula1
                 tableaus[j].formulas = *tableaus[j].formulas, formula2
+                assert not any(map(C.is_branch_consistent, tableaus[max(i, j) :]))
 
     def test_event_multiple_agents_fails(self) -> None:
         """Check if contradiction is detected when an event has multiple agents"""
@@ -99,7 +101,7 @@ class TestContradictions:
                 tableau.formulas = list(
                     filter(lambda f: f is not S.True_, tableau.formulas)
                 )
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
         # Check when only the contradiction exists
         for i in range(chain_length):
             tableaus = list(
@@ -119,7 +121,7 @@ class TestContradictions:
                 tableau.formulas = list(
                     filter(lambda f: f is not S.True_, tableau.formulas)
                 )
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
 
     def test_event_multiple_types_fails(self) -> None:
         """Check if contradiction is detected when an event has multiple types"""
@@ -140,7 +142,7 @@ class TestContradictions:
                 tableau.formulas = list(
                     filter(lambda f: f is not S.True_, tableau.formulas)
                 )
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
         # Check when only the contradiction exists
         for i in range(chain_length):
             tableaus = list(
@@ -160,7 +162,7 @@ class TestContradictions:
                 tableau.formulas = list(
                     filter(lambda f: f is not S.True_, tableau.formulas)
                 )
-            assert all(map(C.check_contradiction, tableaus[i:]))
+            assert not any(map(C.is_branch_consistent, tableaus[i:]))
 
     def test_equality_contradictions(self) -> None:
         """Check if incorrect equalities are detected"""
@@ -170,7 +172,7 @@ class TestContradictions:
             c1 = S.Constant.Agent()
             c2 = S.Constant.Agent()
             tableaus[i].formulas = *tableaus[i].formulas, S.Eq(c1, c2)
-            assert C.check_contradiction(tableaus[i])
+            assert not C.is_branch_consistent(tableaus[i])
 
     def test_inequality_contradictions(self) -> None:
         """Check if incorrect inequalities are detected"""
@@ -179,7 +181,7 @@ class TestContradictions:
             tableaus = list(tableau_utils.create_tableau_chain(chain_length))
             c1 = S.Constant.Agent()
             tableaus[i].formulas = *tableaus[i].formulas, S.Not(S.Eq(c1, c1))
-            assert C.check_contradiction(tableaus[i])
+            assert not C.is_branch_consistent(tableaus[i])
 
 
 class TestConjunctionElim:
