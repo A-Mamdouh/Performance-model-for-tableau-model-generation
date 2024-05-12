@@ -1,7 +1,9 @@
 # pylint: disable=invalid-name
 """Implementation of tableau calculus rules"""
 
+import functools
 import itertools
+import operator
 from typing import Generator, Iterable, List, Optional, Set, Tuple
 
 import src.syntax as S
@@ -12,25 +14,28 @@ def generate_models(tableau: T.Tableau) -> Generator[T.Tableau, None, None]:
     """Generate possible models of the"""
     # First, apply non-branching rules to the tableau until none can be applied
     maximal_non_branching = try_non_branching_rules(tableau)
-    # If no tableau is produced, return
-    if not maximal_non_branching:
-        return None
     # Then, apply branching rules and collect branches
-    branches = apply_branching_rules(maximal_non_branching)
+    branches = None
+    if maximal_non_branching:
+        branches = try_branching_rules(
+            T.Tableau.merge(maximal_non_branching, tableau, parent=tableau)
+        )
+    else:
+        branches = try_branching_rules(tableau)
     # If no branches are produces, resolve now
     if not branches:
         # Yield if maximal non-branching tableau is consistent
-        if is_branch_consistent(maximal_non_branching):
+        if maximal_non_branching and is_branch_consistent(maximal_non_branching):
             yield maximal_non_branching
         return None
     # Loop over branches and expand the branches
-    for branch in branches:
-        # Skip inconsistent branches
-        if not is_branch_consistent(branch):
-            continue
+    for branch in filter(is_branch_consistent, branches):
         # Recursively generate models
-        for model in generate_models(branch):
-            yield model
+        outputs = list(generate_models(branch))
+        if outputs:
+            yield from outputs
+        else:
+            yield branch
     return None
 
 
@@ -43,28 +48,50 @@ def try_non_branching_rules(tableau: T.Tableau) -> Optional[T.Tableau]:
         try_forall_elim,
         try_focused_forall_elim,
     )
-    outputs = list(
-        filter(lambda e: e, map(lambda rule: rule(tableau), non_branching_rules))
+    # Apply all rules to tableau and collect non-emtpy outputs
+    outputs: List[T.Tableau] = list(
+        filter(operator.truth, map(lambda rule: rule(tableau), non_branching_rules))
     )
     output: Optional[T.Tableau] = None
     while outputs:
         # Get non empty outputs from rules
         if output:
-            output = T.Tableau.merge(*outputs, output)
-        else:
-            output = T.Tableau.merge(*outputs)
+            outputs = *outputs, output
+        output = T.Tableau.merge(*outputs, parent=tableau)
         # Reapply rules to current tableau node
         outputs = list(
-            filter(lambda e: e, map(lambda rule: rule(output), non_branching_rules))
+            filter(operator.truth, map(lambda rule: rule(output), non_branching_rules))
         )
     return output
 
 
-def apply_branching_rules(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
+def try_branching_rules(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     """Try applying branching rules until exhausted.
     Return None if no rules are applicable to the initial node"""
     branching_rules = (try_or_elim, try_exists_elim, try_focused_exists_elim)
-    return None
+    # Apply all rules to tableau and collect non-emtpy outputs
+
+    outputs: List[List[T.Tableau]] = list(
+        filter(operator.truth, map(lambda rule: rule(tableau), branching_rules))
+    )
+    if not outputs:
+        return None
+    # Now we get the merged branches of the next level of inference
+    next_level: List[T.Tableau] = list(
+        itertools.starmap(
+            functools.partial(T.Tableau.merge, parent=tableau),
+            itertools.product(*outputs),
+        )
+    )
+    # We apply the same thing recursively
+    output = set()
+    for tableau_ in next_level:
+        maximal = try_branching_rules(tableau_)
+        if maximal:
+            output.add(T.Tableau.merge(tableau_, *maximal, parent=tableau))
+        else:
+            output.add(tableau_)
+    return output
 
 
 def is_branch_consistent(tableau: T.Tableau) -> bool:
@@ -248,7 +275,7 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         tableau.formulas,
     )
     # For every quantified formula, collect all of its branches in a list
-    all_sub_branches: List[List[S.Formula]] = []
+    all_sub_branches: List[Set[T.Tableau]] = []
     for quantified_formula in quantified_formulas:
         inner_formula: S.Forall = quantified_formula.formula
         # Filter out applicable entities
@@ -256,35 +283,36 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         applicable_entities: Iterable[S.Term] = filter(
             lambda e: e.sort == inner_formula.sort, tableau.branch_entities
         )
-        # Add witness
-        applicable_entities = *applicable_entities, S.Constant(quantified_formula.sort)
-        # Map applicable terms over the quantified partial formula
-        sub_branches: Iterable[S.Not] = map(
-            lambda e: S.Not(inner_formula.partial_formula(e)), applicable_entities
+        sub_branches: Set[T.Tableau] = set(
+            map(
+                lambda e: T.Tableau(
+                    [remove_double_negations(S.Not(inner_formula.partial_formula(e)))]
+                ),
+                applicable_entities,
+            )
         )
-        # Remove double negations
-        sub_branches: List[S.Formula] = list(filter(remove_double_negations, sub_branches))
+        witness: S.Constant = S.Constant(quantified_formula.sort)
+        witness_formula = remove_double_negations(
+            S.Not(inner_formula.partial_formula(witness))
+        )
+        sub_branches.add(T.Tableau([witness_formula], entities=[witness]))
         # Only add nonempty subbranches. Otherwise cartesian product fails
         if sub_branches:
             # Add current formula's branches to all branches
             all_sub_branches.append(sub_branches)
+    # If not sub branches were found, return None
+    if not all_sub_branches:
+        return None
     # The produced branches should be the cartesian product of the current inner branches
-    branch_sets: Iterable[Set[S.Formula]] = map(
-        lambda branch: set(branch).difference(tableau.branch_formulas),
-        itertools.product(*all_sub_branches),
-    )
-    # Remove repeated branches by casting to ordered hashable tuples and putting into one set
-    branch_tuples: Set[Tuple[S.Formula]] = set(
+    output_branches: Set[T.Tableau] = set(
         map(
-            lambda branch_set: tuple(sorted(branch_set, key=S.Formula.__str__)),
-            branch_sets,
+            lambda ts: T.Tableau.merge(*ts, parent=tableau),
+            itertools.product(*all_sub_branches),
         )
     )
     # Map branches to tableaus
-    if branch_tuples:
-        return map(
-            lambda branch_tuple: T.Tableau(branch_tuple, parent=tableau), branch_tuples
-        )
+    if output_branches:
+        return output_branches
     return None
 
 
@@ -299,47 +327,50 @@ def try_focused_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]
         tableau.formulas,
     )
     # For every quantified formula, collect all of its branches in a list
-    all_sub_branches: List[List[S.Formula]] = []
+    all_sub_branches: List[Set[T.Tableau]] = []
     for quantified_formula in quantified_formulas:
         inner_formula: S.ForallF = quantified_formula.formula
         # Filter out applicable entities
         # pylint: disable=W0640:cell-var-from-loop
-        applicable_entities = filter(
+        applicable_entities: Iterable[S.Term] = filter(
             lambda e: e.sort == inner_formula.sort, tableau.branch_entities
         )
-        # Filter out applicable entities by applying the unfocused part
-        applicable_entities = filter(
-            lambda e: inner_formula.unfocused_partial(e) in tableau.branch_entities,
+        applicable_entities: Iterable[S.Term] = filter(
+            lambda e: inner_formula.unfocused_partial(e) in tableau.branch_formulas,
             applicable_entities,
         )
-        # Add witness
-        applicable_entities = *applicable_entities, S.Constant(quantified_formula.sort)
-        # Map applicable terms over the quantified partial formula
-        sub_branches = map(
-            lambda e: S.Not(inner_formula.focused_partial(e)), applicable_entities
+        sub_branches: Set[T.Tableau] = set(
+            map(
+                lambda e: T.Tableau(
+                    [remove_double_negations(S.Not(inner_formula.focused_partial(e)))]
+                ),
+                applicable_entities,
+            )
         )
-        # Remove double negations
-        sub_branches = filter(remove_double_negations, sub_branches)
-        sub_branches = list(sub_branches)
+        witness: S.Constant = S.Constant(quantified_formula.sort)
+        witness_formulas = (
+            inner_formula.unfocused_partial(witness),
+            inner_formula.focused_partial(witness),
+        )
+        witness_formulas = map(
+            lambda f: remove_double_negations(S.Not(f)), witness_formulas
+        )
+        sub_branches.add(T.Tableau(witness_formulas, entities=[witness]))
         # Only add nonempty subbranches. Otherwise cartesian product fails
         if sub_branches:
             # Add current formula's branches to all branches
             all_sub_branches.append(sub_branches)
+    # If not sub branches were found, return None
+    if not all_sub_branches:
+        return None
     # The produced branches should be the cartesian product of the current inner branches
-    branch_sets: Iterable[Set[S.Formula]] = map(
-        lambda branch: set(branch).difference(tableau.branch_formulas),
-        itertools.product(*all_sub_branches),
-    )
-    # Remove repeated branches by casting to ordered hashable tuples and putting into one set
-    branch_tuples: Set[Tuple[S.Formula]] = set(
+    output_branches: Set[T.Tableau] = set(
         map(
-            lambda branch_set: tuple(sorted(branch_set, key=S.Formula.__str__)),
-            branch_sets,
+            lambda ts: T.Tableau.merge(*ts, parent=tableau),
+            itertools.product(*all_sub_branches),
         )
     )
     # Map branches to tableaus
-    if branch_tuples:
-        return map(
-            lambda branch_tuple: T.Tableau(branch_tuple, parent=tableau), branch_tuples
-        )
+    if output_branches:
+        return output_branches
     return None
