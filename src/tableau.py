@@ -2,7 +2,7 @@
 
 # pylint: disable=invalid-name
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, Tuple
 import itertools
 
 import src.syntax as S
@@ -159,3 +159,16 @@ class Tableau:
     def copy(self) -> "Tableau":
         """Return a shallow copy of this tableau node"""
         return self.merge(self, parent=self.parent)
+
+    def __eq__(self, other: "Tableau") -> bool:
+        if not isinstance(other, Tableau):
+            return False
+        return hash(self) == hash(other)
+
+    def __hash__(self) -> int:
+        """The hash of a tableau should be the ordered formulas, followed by ordered entities"""
+        ordered_formulas: Tuple[S.Formula] = tuple(
+            sorted(self.formulas, key=S.Formula.__str__)
+        )
+        ordered_entities: Tuple[S.Term] = tuple(sorted(map(str, self.entities)))
+        return hash((ordered_formulas, ordered_entities))
