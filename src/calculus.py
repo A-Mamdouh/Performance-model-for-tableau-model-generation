@@ -350,24 +350,20 @@ def try_focused_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]
         witness: S.Constant = S.Constant(quantified_formula.sort)
         witness_formulas = (
             inner_formula.unfocused_partial(witness),
-            inner_formula.focused_partial(witness),
+            S.Not(inner_formula.focused_partial(witness)),
         )
-        witness_formulas = map(
-            lambda f: remove_double_negations(S.Not(f)), witness_formulas
-        )
-        sub_branches.add(T.Tableau(witness_formulas, entities=[witness]))
-        # Only add nonempty subbranches. Otherwise cartesian product fails
-        if sub_branches:
-            # Add current formula's branches to all branches
-            all_sub_branches.append(sub_branches)
+        witness_formulas = map(remove_double_negations , witness_formulas )
+        sub_branches.add(T.Tableau(list(witness_formulas), entities=[witness]))
+        # Add current formula's branches to all branches
+        all_sub_branches.append(sub_branches)
     # If not sub branches were found, return None
     if not all_sub_branches:
         return None
     # The produced branches should be the cartesian product of the current inner branches
     output_branches: Set[T.Tableau] = set(
-        map(
-            lambda ts: T.Tableau.merge(*ts, parent=tableau),
-            itertools.product(*all_sub_branches),
+        itertools.starmap(
+            functools.partial(T.Tableau.merge, parent=tableau),
+            itertools.product(*all_sub_branches)
         )
     )
     # Map branches to tableaus
