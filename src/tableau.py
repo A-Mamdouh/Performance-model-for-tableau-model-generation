@@ -152,6 +152,9 @@ class Tableau:
         entities = set(
             itertools.chain(*map(lambda tableau: tableau.entities, tableaus))
         )
+        if parent:
+            formulas.difference_update(parent.branch_formulas)
+            entities.difference_update(parent.branch_entities)
         # Create a tableau from the merged formulas and entities, with the passed parent
         merged_tableau = Tableau(formulas, entities, parent, False)
         return merged_tableau
