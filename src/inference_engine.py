@@ -5,8 +5,8 @@ from .syntax import *
 from .tableau import *
 from .calculus import *
 from .narrator import *
-from .heuristic import Heuristic, ContextObject, EventEmbedding
-from typing import Optional, List, Generator, Iterable
+import src.heuristic as H
+from typing import Optional, List, Generator
 from dataclasses import dataclass, field
 from queue import PriorityQueue
 
@@ -24,7 +24,8 @@ class InferenceAgent:
     def __init__(self):
         self.sentences: List[Sentence] = []
         self.nodes: PriorityQueue[TableauSearchNode] = PriorityQueue()
-        self.nodes.put(self._create_initial_node())
+        self.root = self._create_initial_node()
+        self.nodes.put(self.root)
 
     def _create_initial_node(self) -> TableauSearchNode:
         return TableauSearchNode(
@@ -41,11 +42,13 @@ class InferenceAgent:
             if self.nodes.empty():
                 return False
             current_model = self.nodes.get()
-            yield current_model
+            if current_model is not self.root:
+                yield current_model
             self._extend_model(current_model)
         while not self.nodes.empty():
             current_model = self.nodes.get()
-            yield current_model
+            if current_model is not self.root:
+                yield current_model
             self._extend_model(current_model)
         return True
 
@@ -119,11 +122,11 @@ class BFSAgent(InferenceAgent):
 
 @dataclass
 class HeuristicTableauSearchNode(TableauSearchNode):
-    context_object: ContextObject = field(compare=False, default=None)
+    context_object: H.ContextObject = field(compare=False, default=None)
 
 
 class HeuristicAgent(InferenceAgent):
-    def __init__(self, heuristic: Heuristic, *args, **kwargs):
+    def __init__(self, heuristic: H.Heuristic, *args, **kwargs):
         self._heuristic = heuristic
         super().__init__(*args, **kwargs)
 
@@ -143,27 +146,9 @@ class HeuristicAgent(InferenceAgent):
     ) -> HeuristicTableauSearchNode:
         # Get embedding of the current branch
         # Embedding will be all literals about events that were relevant between the current model and previous model
-        parent_event_literals = [str(x) for x in parent.tableau.branch_event_literals]
-        new_event_literals = [literal for literal in model_tableau.branch_event_literals if str(literal) not in parent_event_literals]
-        # Group literals by events
-        grouped_literals = {}
-        for literal in new_event_literals:
-            l = literal
-            if isinstance(literal, Not):
-                l = literal.formula
-            event = l.args[0]
-            found = grouped_literals.get(str(event))
-            if found is None:
-                found = (event, [])
-                grouped_literals[str(event)] = found
-            literals_list = found[1]
-            literals_list.append(literal)
-        # Create event embeddings
-        event_embeddings = map(
-            lambda x: EventEmbedding(x[0], x[1]), grouped_literals.values()
-        )
+        event_info = model_tableau.branch_event_info
         # Pass to heuristic for scoring
-        new_context, branch_score = self._heuristic.score_branch(previous_context=parent.context_object, event_embeddings=event_embeddings)
+        new_context, branch_score = self._heuristic.score_branch(previous_context=parent.context_object, branch_embeddings=event_info)
         # Return new node
         return HeuristicTableauSearchNode(priority=branch_score, sentence_depth=sentence_depth, tableau=model_tableau, parent=parent, context_object=new_context)
 
@@ -178,12 +163,13 @@ def main():
     story = [
         NounVerbSentence(john, eat),
         NounVerbSentence(bob, eat),
+        NounNotVerbSentence(bob, run),
         # NounAlwaysVerbSentence(bob, sleep),
         # NounNotVerbSentence(mary, run),
         # NounVerbSentence(bob, eat),
     ]
     narrator = Narrator(story)
-    heuristic = Heuristic()
+    heuristic = H.MinEvents()
     inference_agent = HeuristicAgent(heuristic=heuristic)
     n_models = 0
     for model in inference_agent.search(narrator):
@@ -191,8 +177,8 @@ def main():
         print(
             f"model @ {model.sentence_depth}: ",
             *(
-                x.annotation
-                for x in reversed(model.tableau.branch_formulas)
+                Formula.__str__(x)
+                for x in reversed(list(model.tableau.branch_formulas))
                 if x.annotation
             ),
             sep="\n ",
@@ -200,7 +186,7 @@ def main():
         )
         print(
             "Entities:",
-            *(str(x) for x in reversed(model.tableau.branch_entities)),
+            *(str(x) for x in reversed(list(model.tableau.branch_entities))),
             sep="\n ",
         )
         print("-" * 30)
