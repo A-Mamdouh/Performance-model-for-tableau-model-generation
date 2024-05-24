@@ -6,8 +6,8 @@ import itertools
 import operator
 from typing import Generator, Iterable, List, Optional, Set, Tuple
 
-import src.syntax as S
-import src.tableau as T
+import src.logic.syntax as S
+import src.logic.tableau as T
 
 
 def generate_models(tableau: T.Tableau) -> Generator[T.Tableau, None, None]:
@@ -352,7 +352,7 @@ def try_focused_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]
             inner_formula.unfocused_partial(witness),
             S.Not(inner_formula.focused_partial(witness)),
         )
-        witness_formulas = map(remove_double_negations , witness_formulas )
+        witness_formulas = map(remove_double_negations, witness_formulas)
         sub_branches.add(T.Tableau(list(witness_formulas), entities=[witness]))
         # Add current formula's branches to all branches
         all_sub_branches.append(sub_branches)
@@ -363,7 +363,7 @@ def try_focused_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]
     output_branches: Set[T.Tableau] = set(
         itertools.starmap(
             functools.partial(T.Tableau.merge, parent=tableau),
-            itertools.product(*all_sub_branches)
+            itertools.product(*all_sub_branches),
         )
     )
     # Map branches to tableaus

@@ -3,7 +3,19 @@ from abc import ABC, abstractmethod
 from typing import Sequence, Iterable
 from enum import Enum
 
-from .syntax import *
+from src.logic.syntax import (
+    Agent,
+    And,
+    Constant,
+    Exists,
+    ExistsF,
+    Forall,
+    ForallF,
+    Formula,
+    Implies,
+    Term,
+    Type_,
+)
 
 
 __all__ = (
@@ -43,10 +55,10 @@ class Sentence(ABC):
         pass
 
     def __str__(self) -> str:
-        self.get_str(Sentence.Focus.ALL)
+        return list(self.get_str(Sentence.Focus.FULL))[0]
 
     @abstractmethod
-    def get_formulas(self, focus: Focus = Focus.FULL) -> Iterable[Formula]:
+    def get_formulas(self, focus: Focus) -> Iterable[Formula]:
         pass
 
 
@@ -98,7 +110,8 @@ class NounAlwaysVerbSentence(Sentence):
     def get_str(self, focus: Sentence.Focus) -> Iterable[str]:
         match focus:
             case Sentence.Focus.FULL:
-                return [f"{self.noun} always {self.verb.past}"] # TODO: This focus does not make sense. Since it will pick one of the others internally.
+                # FIXME: This focus does not make sense. Since it will pick one of the others internally.
+                return [f"{self.noun} always {self.verb.past}"]
             case Sentence.Focus.NOUN:
                 return [f"if someone {self.verb.past}, it was {self.noun}"]
             case Sentence.Focus.VERB:

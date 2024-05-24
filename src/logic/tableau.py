@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterable, Optional, Tuple
 import itertools
 
-import src.syntax as S
+import src.logic.syntax as S
 
 __all__ = ("Tableau",)
 
