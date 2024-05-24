@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-import src.heuristics as H
+from src.heuristics.context_token import ContextToken
 import src.logic.tableau as T
 
 
@@ -22,4 +22,4 @@ class TableauSearchNode:
 class HeuristicTableauSearchNode(TableauSearchNode):
     """A struct containing a maximal search node of informed search agents"""
 
-    context_object: H.ContextObject = field(compare=False, default=None)
+    context_object: ContextToken = field(compare=False, default=None)
