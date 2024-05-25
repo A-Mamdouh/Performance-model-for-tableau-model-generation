@@ -1,5 +1,6 @@
 """Demo showing an agent output"""
 
+from src.heuristics.learned_heuristics.neural_heuristic import NeuralHeuristic
 import src.narrator as N
 import src.heuristics as H
 from src.logic.syntax import Formula
@@ -18,18 +19,19 @@ def main():
         N.NounVerbSentence(john, eat),
         N.NounVerbSentence(bob, eat),
         N.NounNotVerbSentence(bob, run),
-        # NounAlwaysVerbSentence(bob, sleep),
-        # NounNotVerbSentence(mary, run),
-        # NounVerbSentence(bob, eat),
+        N.NounAlwaysVerbSentence(bob, sleep),
+        N.NounNotVerbSentence(mary, run),
+        N.NounVerbSentence(bob, eat),
     ]
     narrator = N.Narrator(story)
-    heuristic = H.MinEvents()
+    heuristic = NeuralHeuristic()
+    heuristic.setup_model()
     inference_agent = GreedyAgent(heuristic=heuristic)
     n_models = 0
     for model in inference_agent.search(narrator):
         # print("model:", *model.get_model(), sep=" ", end="\n")
         print(
-            f"model @ {model.sentence_depth}: ",
+            f"model @ {model.sentence_depth} - {model.priority[0,0]:.6f}: ",
             *(
                 Formula.__str__(x)
                 for x in reversed(list(model.tableau.branch_formulas))
