@@ -2,6 +2,7 @@
 
 from src.search.search_agent_base import InferenceAgent
 from src.search.search_node import TableauSearchNode
+import src.logic.tableau as T
 
 
 class DFSAgent(InferenceAgent):
