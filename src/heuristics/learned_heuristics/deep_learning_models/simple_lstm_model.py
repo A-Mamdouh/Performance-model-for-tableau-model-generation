@@ -66,7 +66,19 @@ class ModelConfig:
     num_layers: int = 2
     dropout: float = 0.0
     bidirectional: bool = False
-    device: str | torch.device = "cuda"
+    accelerated: bool = True
+    device: str | torch.device | None = None
+
+    def __post_init__(self) -> None:
+        if self.accelerated and self.device is None:
+            backends = (torch.backends.cuda, "cuda"), (torch.backends.mps, "mps")
+            for backend, name in backends:
+                if backend.is_built() and backend.is_available():
+                    self.device = name
+                    break
+            else:
+                self.device = "cpu"
+                self.accelerated = False
 
 
 class Model(torch.nn.Module):
