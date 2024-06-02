@@ -1,6 +1,6 @@
 """Demo showing an agent output"""
 
-from src.heuristics.learned_heuristics.deep_learning_models.simple_lstm_model import LSTMModel
+from src.heuristics.learned_heuristics.deep_learning_models.simple_gru_model import GRUModel
 from src.heuristics.min_events import MinEvents
 import src.narration as N
 from src.logic.syntax import Formula

@@ -87,7 +87,7 @@ def train(model: GRUModel, train_sequences, train_labels, iters: int, lr: float)
         iterator.set_description_str(f"Training loss: {loss_value:.4f}")
         loss_history.append(loss_value)
     return loss_history
-loss_history = train(gru_model, train_sequences, train_labels, 20, lr=1e-5)
+loss_history = train(gru_model, train_sequences, train_labels, 30, lr=1e-4)
 plt.plot(loss_history)
 plt.show()
 

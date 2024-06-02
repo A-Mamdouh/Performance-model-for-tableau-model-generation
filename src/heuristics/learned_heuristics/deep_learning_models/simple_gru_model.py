@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from functools import reduce
 import operator
-from typing import List, Optional, Tuple
+from typing import ClassVar, List, Optional, Tuple
 
 import torch
 
@@ -19,6 +19,7 @@ class InputData:
 
     model_depth: int
     events_data: List[EventInformation]
+    embedding_size: ClassVar[int] = 3
 
     @classmethod
     def from_search_node(cls, node: TableauSearchNode) -> "InputData":
@@ -61,11 +62,12 @@ class InputData:
 class GRUModelConfig:
     """Configuration for DL model"""
 
-    input_size: int = 3
+    feature_extraction_depth: int = 2
+    gru_num_layers: int = 2
+    prediction_head_depth: int = 1
     latent_size: int = 64
     hidden_size: int = 100
     output_size: int = 1
-    num_layers: int = 2
     dropout: float = 0.0
     bidirectional: bool = False
     accelerated: bool = True
@@ -94,32 +96,44 @@ class GRUModel(torch.nn.Module, Heuristic):
         if cfg is None:
             cfg = GRUModelConfig()
         self._cfg = cfg
-        self.features = torch.nn.Sequential(
-            torch.nn.Linear(cfg.input_size, cfg.latent_size),
-            torch.nn.ReLU(),
-            torch.nn.Dropout1d(cfg.dropout),
-            torch.nn.Linear(cfg.latent_size, cfg.latent_size),
-            torch.nn.ReLU(),
-            torch.nn.Dropout1d(cfg.dropout),
-            torch.nn.Linear(cfg.latent_size, cfg.latent_size),
-            torch.nn.ReLU(),
-            torch.nn.Dropout1d(cfg.dropout),
-        )
+        self.feature_extraction_backbone = self._build_feature_extraction_backbone()
         self.memory_unit = torch.nn.GRU(
             input_size=cfg.latent_size,
             hidden_size=cfg.hidden_size,
-            num_layers=cfg.num_layers,
+            num_layers=cfg.gru_num_layers,
             dropout=cfg.dropout,
             bidirectional=cfg.bidirectional,
         )
-        self.prediction_head = torch.nn.Sequential(
-            torch.nn.Linear(cfg.hidden_size, cfg.hidden_size),
-            torch.nn.Linear(cfg.hidden_size, cfg.output_size)
-        )
+        self.prediction_head = self._build_prediction_head()
         self._module_list = torch.nn.ModuleList(
-            (self.features, self.memory_unit, self.prediction_head)
+            (self.feature_extraction_backbone, self.memory_unit, self.prediction_head)
         )
         self.to(self._cfg.device)
+    
+    def _build_feature_extraction_backbone(self) -> torch.nn.Module:
+        layers = [
+            torch.nn.Linear(InputData.embedding_size, self._cfg.latent_size),
+            torch.nn.ReLU(),
+            torch.nn.Dropout1d(self._cfg.dropout),
+        ]
+        for _ in range(self._cfg.feature_extraction_depth):
+            layers.extend([
+                torch.nn.Linear(self._cfg.latent_size, self._cfg.latent_size),
+                torch.nn.ReLU(),
+                torch.nn.Dropout1d(self._cfg.dropout),
+            ])
+        return torch.nn.Sequential(*layers)
+    
+    def _build_prediction_head(self) -> torch.nn.Module:
+        layers = []
+        for _ in range(self._cfg.prediction_head_depth):
+            layers.extend([
+                torch.nn.Linear(self._cfg.hidden_size, self._cfg.hidden_size),
+                torch.nn.ReLU(),
+                torch.nn.Dropout1d(self._cfg.dropout),
+            ])
+        layers.append(torch.nn.Linear(self._cfg.hidden_size, self._cfg.output_size))
+        return torch.nn.Sequential(*layers)
     
     @staticmethod
     def _make_empty_branch_tensor(input_: InputData) -> torch.Tensor:
@@ -145,7 +159,7 @@ class GRUModel(torch.nn.Module, Heuristic):
         """Return a tuple of the score and new context (hidden state)"""
         x = x.to(device=self._cfg.device)
         h = h.to(device=self._cfg.device)
-        features = self.features(x)
+        features = self.feature_extraction_backbone(x)
         y, h_new = self.memory_unit(features, h)
         score = self.prediction_head(y)
         return score, h_new
@@ -162,7 +176,7 @@ class GRUModel(torch.nn.Module, Heuristic):
         h0s = h0s.moveaxis(0, 1).to(self._cfg.device)
         # First, get the lstm features input from the linear units
         flat_sequences = torch.concat(xs, dim=0).to(self._cfg.device)
-        flat_features: torch.Tensor = self.features(flat_sequences) # Batch Size * Sequence Length x LSTM Input Shape
+        flat_features: torch.Tensor = self.feature_extraction_backbone(flat_sequences) # Batch Size * Sequence Length x LSTM Input Shape
         # Then, reshape back into the lstm input Length x BatchSize x latent_size and get the lstm output
         reshaped_lstm_input = flat_features.split_with_sizes(list(map(len, xs)))
         packed_feature_tensor = torch.nn.utils.rnn.pack_sequence(reshaped_lstm_input)
@@ -183,7 +197,7 @@ class GRUModel(torch.nn.Module, Heuristic):
         d = 2 if cfg.bidirectional else 1
         return torch.zeros(
             (
-                d * cfg.num_layers,
+                d * cfg.gru_num_layers,
                 cfg.hidden_size,
             ),
             dtype=torch.float32,
