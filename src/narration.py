@@ -20,7 +20,6 @@ from src.logic.syntax import (
 
 __all__ = (
     "Sentence",
-    "Narrator",
     "Verb",
     "NounVerbSentence",
     "NounNotVerbSentence",

@@ -2,14 +2,14 @@
 
 from src.search.search_agent_base import InferenceAgent
 from src.search.search_node import HeuristicTableauSearchNode, TableauSearchNode
-import src.heuristics as H
+from src.heuristics.base_heuristic import Heuristic
 import src.logic.tableau as T
 
 
 class GreedyAgent(InferenceAgent):
     """Greedy search agent. Explores nodes based on the heuristic score"""
 
-    def __init__(self, heuristic: H.Heuristic, *args, **kwargs):
+    def __init__(self, heuristic: Heuristic, *args, **kwargs):
         self._heuristic = heuristic
         super().__init__(*args, **kwargs)
 
