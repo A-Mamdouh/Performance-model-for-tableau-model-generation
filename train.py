@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 import tqdm
 
-from src.heuristics.learned_heuristics.deep_learning_models.simple_lstm_model import LSTMModel, LSTMModelConfig
+from src.heuristics.learned_heuristics.deep_learning_models.simple_gru_model import GRUModel, GRUModelConfig
 from src.heuristics.min_events import MinEvents
 from src import narration
 from src.search.informed_agents import GreedyAgent
@@ -52,7 +52,7 @@ def get_training_sequences(agent: GreedyAgent, solved_tree: List[HeuristicTablea
         sequence_labels: List[float] = []
         current: HeuristicTableauSearchNode = leaf
         while current:
-            sequence.append(LSTMModel.get_node_encoding(current))
+            sequence.append(GRUModel.get_node_encoding(current))
             sequence_labels.append(current.priority)
             current = current.parent
         sequence = torch.concat(sequence[::-1], dim=0)
@@ -60,18 +60,17 @@ def get_training_sequences(agent: GreedyAgent, solved_tree: List[HeuristicTablea
         sequence_labels = torch.tensor(sequence_labels, dtype=torch.float32, device=device)[:, None]
         labels.append(sequence_labels)
     return sequences, labels
-lstm_model = LSTMModel(LSTMModelConfig(
+gru_model = GRUModel(GRUModelConfig(
     latent_size = 64,
     hidden_size = 128,
-    num_layers=3,
     dropout=0.5,
     bidirectional=False
 ))
-lstm_agent = GreedyAgent(heuristic=lstm_model)
-train_sequences, train_labels = get_training_sequences(lstm_agent, models, lstm_model._cfg.device)
+gru_agent = GreedyAgent(heuristic=gru_model)
+train_sequences, train_labels = get_training_sequences(gru_agent, models, gru_model._cfg.device)
 
 # %%
-def train(model: LSTMModel, train_sequences, train_labels, iters: int, lr: float):
+def train(model: GRUModel, train_sequences, train_labels, iters: int, lr: float):
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_history = []
@@ -88,19 +87,18 @@ def train(model: LSTMModel, train_sequences, train_labels, iters: int, lr: float
         iterator.set_description_str(f"Training loss: {loss_value:.4f}")
         loss_history.append(loss_value)
     return loss_history
-loss_history = train(lstm_model, train_sequences, train_labels, 20, lr=1e-5)
+loss_history = train(gru_model, train_sequences, train_labels, 20, lr=1e-5)
 plt.plot(loss_history)
 plt.show()
 
 # %%
-lstm_model.eval()
+gru_model.eval()
 with torch.inference_mode():
-    trained_models = get_target_models(lstm_agent, narrator)
+    trained_models = get_target_models(gru_agent, narrator)
 
 # %%
 with open("training_output", "w") as fp:
     for model in trained_models:
-        # print("model:", *model.get_model(), sep=" ", end="\n")
         print(
             f"model @ {model.sentence_depth} - {model.priority[0,0]:.6f}: ",
             *(

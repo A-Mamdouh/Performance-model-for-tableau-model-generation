@@ -58,7 +58,7 @@ class InputData:
 
 
 @dataclass
-class LSTMModelConfig:
+class GRUModelConfig:
     """Configuration for DL model"""
 
     input_size: int = 3
@@ -83,16 +83,16 @@ class LSTMModelConfig:
                 self.accelerated = False
 
 
-class LSTMModel(torch.nn.Module, Heuristic):
+class GRUModel(torch.nn.Module, Heuristic):
     """Deep learning model.
     This model uses a linear feature extraction block,
     followed by an LSTM block, then a prediction head for the score output
     """
 
-    def __init__(self, cfg: Optional[LSTMModelConfig] = None):
+    def __init__(self, cfg: Optional[GRUModelConfig] = None):
         super().__init__()
         if cfg is None:
-            cfg = LSTMModelConfig()
+            cfg = GRUModelConfig()
         self._cfg = cfg
         self.features = torch.nn.Sequential(
             torch.nn.Linear(cfg.input_size, cfg.latent_size),
@@ -179,7 +179,7 @@ class LSTMModel(torch.nn.Module, Heuristic):
 
     def _get_initial_h(self) -> torch.Tensor:
         """Return a tensor for the initial history"""
-        cfg: LSTMModelConfig = self._cfg
+        cfg: GRUModelConfig = self._cfg
         d = 2 if cfg.bidirectional else 1
         return torch.zeros(
             (
@@ -206,5 +206,5 @@ class LSTMModel(torch.nn.Module, Heuristic):
         encoding: torch.Tensor = input_data.get_encoding_tensor()
         # If nothing new is in this node, get the empty representaiton
         if len(encoding) == 0:
-            encoding = LSTMModel._make_empty_branch_tensor(input_data)
+            encoding = GRUModel._make_empty_branch_tensor(input_data)
         return encoding
