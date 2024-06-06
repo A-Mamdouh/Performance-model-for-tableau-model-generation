@@ -1,7 +1,14 @@
 [project]
 name = "performance-model-for-tableau-model-generation"
 dynamic = ["version"]
-dependencies = ["pytest==8.2.0", "ruff==0.4.2", "torch==2.3.0+cu121", "torchvision==0.18.0+cu121"]
+dependencies = [
+    "pytest==8.2.0",
+    "ruff==0.4.2",
+    "torch==2.3.0+cu121",
+    "torchvision==0.18.0+cu121",
+    "tqdm==4.66.4",
+    "matplotlib==3.9.0",
+]
 
 
 [tool.pytest.ini_options]
