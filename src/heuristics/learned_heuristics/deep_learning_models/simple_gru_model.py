@@ -75,9 +75,9 @@ class GRUModelConfig:
 
     def __post_init__(self) -> None:
         if self.accelerated and self.device is None:
-            backends = (torch.backends.cuda, "cuda"), (torch.backends.mps, "mps")
+            backends = (torch.cuda, "cuda"), (torch.backends.mps, "mps")
             for backend, name in backends:
-                if backend.is_built() and backend.is_available():
+                if backend.is_available():
                     self.device = name
                     break
             else:
@@ -173,7 +173,7 @@ class GRUModel(torch.nn.Module, Heuristic):
         """
         if h0s is None:
             h0s = torch.stack((self.get_empty_context(),) * len(xs), dim=0)
-        h0s = h0s.moveaxis(0, 1).to(self._cfg.device)
+        h0s = h0s.moveaxis(0, 1).to(self._cfg.device).contiguous()
         # First, get the lstm features input from the linear units
         flat_sequences = torch.concat(xs, dim=0).to(self._cfg.device)
         flat_features: torch.Tensor = self.feature_extraction_backbone(flat_sequences) # Batch Size * Sequence Length x LSTM Input Shape
