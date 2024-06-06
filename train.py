@@ -60,6 +60,7 @@ def get_training_sequences(agent: GreedyAgent, solved_tree: List[HeuristicTablea
         sequence_labels = torch.tensor(sequence_labels, dtype=torch.float32, device=device)[:, None]
         labels.append(sequence_labels)
     return sequences, labels
+
 gru_model = GRUModel(GRUModelConfig(
     latent_size = 64,
     hidden_size = 128,
@@ -73,7 +74,7 @@ train_sequences, train_labels = get_training_sequences(gru_agent, models, gru_mo
 def train(model: GRUModel, train_sequences, train_labels, iters: int, lr: float):
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_history = []
+    loss_history: List[float] = []
     flat_labels = torch.stack(train_labels, dim=0)
     iterator = tqdm.trange(iters, desc="training")
     for _ in iterator:
@@ -117,5 +118,3 @@ with open("training_output", "w") as fp:
             file=fp,
         )
         print("-" * 30, file=fp)
-
-
