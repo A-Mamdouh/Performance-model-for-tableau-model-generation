@@ -22,4 +22,8 @@ class MinEvents(Heuristic):
         context = super().score_node(previous_context, search_node)[0]
         # Set the score to be the number of events / sentence depth
         n_events = len(list(search_node.tableau.branch_events))
-        return context, -(n_events * self.event_penalty + search_node.sentence_depth * self.model_depth_reward)
+        total_reward = (
+            n_events * self.event_penalty
+            + search_node.sentence_depth * self.model_depth_reward
+        )
+        return context, total_reward
