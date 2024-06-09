@@ -12,6 +12,10 @@ from src.search.informed_agents import GreedyAgent
 from src.search.search_node import HeuristicTableauSearchNode
 from src.logic.syntax import Formula
 
+# Fix random state
+torch.manual_seed(40)
+
+
 # %%
 def make_narrator() -> narration.Narrator:
     run = narration.Verb("run", "ran")
@@ -70,11 +74,13 @@ def get_training_sequences(
             else:
                 depths[current.sentence_depth] += 1
             current = current.parent
-        label_depths.append(sequence_depths)
+        label_depths.append(sequence_depths[::-1])
         # Concatenate the sequence
         sequence = torch.concat(sequence[::-1], dim=0)
         sequences.append(sequence)
-        sequence_labels = torch.tensor(sequence_labels, dtype=torch.float32, device=device)[:, None]
+        sequence_labels = torch.tensor(
+            sequence_labels[::-1], dtype=torch.float32, device=device
+        )[:, None]
         labels.append(sequence_labels)
         if depths.get(leaf.sentence_depth) is None:
             depths[leaf.sentence_depth] = 1
@@ -91,12 +97,15 @@ def get_training_sequences(
     return sequences, labels, weights
 
 
-gru_model = GRUModel(GRUModelConfig(
-    latent_size = 64,
-    hidden_size = 128,
-    dropout=0.5,
-    bidirectional=False
-))
+gru_model = GRUModel(
+    GRUModelConfig(
+        gru_num_layers=2,
+        latent_size=128,
+        hidden_size=512,
+        dropout=0.0,
+        bidirectional=False,
+    )
+)
 gru_agent = GreedyAgent(heuristic=gru_model)
 train_sequences, train_labels, weights = get_training_sequences(
     gru_agent, models, gru_model._cfg.device
@@ -125,7 +134,7 @@ def train(
         loss_history.append(loss_value)
     return loss_history
 loss_history = train(
-    gru_model, train_sequences, train_labels, weights, iters=50, lr=1e-4
+    gru_model, train_sequences, train_labels, weights, iters=50, lr=1e-3
 )
 plt.plot(loss_history)
 plt.show()
