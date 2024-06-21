@@ -507,6 +507,22 @@ class Type_(AppliedPredicate):
         return self.args[1]
 
 
+Literal = AppliedPredicate | Not
+
+
+def get_words(literals: List[Literal]) -> List[str]:
+    """Return the list of included words from the input list"""
+    words = set()
+    for literal in literals:
+        if isinstance(literal, Not):
+            literal = literal.formula
+        if isinstance(literal, Agent):
+            words.add(literal.agent.name)
+        if isinstance(literal, Type_):
+            words.add(literal.type_.name)
+    return list(words)
+
+
 if __name__ == "__main__":
     p = Predicate("p", 4)
     f = Forall(
@@ -519,5 +535,3 @@ if __name__ == "__main__":
         Term.Sort.EVENT,
     )
     print(f)
-
-Literal = AppliedPredicate | Not

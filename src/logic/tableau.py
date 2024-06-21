@@ -78,14 +78,24 @@ class Tableau:
         )
 
     @property
+    def words(self) -> Iterable[str]:
+        """A list of words used in the current node"""
+        return S.get_words(self.literals)
+
+    @property
+    def branch_words(self) -> Iterable[str]:
+        """A list of words used in the whole branch starting with the current node"""
+        return S.get_words(self.branch_literals)
+
+    @property
     def literals(self) -> Iterable[S.Literal]:
         """All literals in the current node"""
-        return filter(S.is_literal, self.formulas)
+        return list(filter(S.is_literal, self.formulas))
 
     @property
     def branch_literals(self) -> Iterable[S.Literal]:
         """All literals from this node up to the root. Starting with this node"""
-        return filter(S.is_literal, self.branch_formulas)
+        return list(filter(S.is_literal, self.branch_formulas))
 
     @property
     def event_info(self) -> Iterable[EventInformation]:
