@@ -2,8 +2,8 @@
 
 from typing import Any, Dict, Iterable
 
-import src.syntax as S
-import src.tableau as T
+import src.logic.syntax as S
+import src.logic.tableau as T
 
 
 def create_tableau_params(**overrides) -> Dict[str, Any]:

@@ -4,8 +4,8 @@ import itertools
 from test import tableau_utils
 from typing import Iterable, List, Set
 
-import src.calculus as C
-import src.syntax as S
+import src.logic.calculus as C
+import src.logic.syntax as S
 
 
 class TestContradictions:
