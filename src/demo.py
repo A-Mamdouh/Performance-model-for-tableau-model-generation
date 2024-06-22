@@ -1,5 +1,6 @@
 """Demo showing an agent output"""
 
+from src.heuristics.highest_salience_first import AverageSalience
 from src.heuristics.learned_heuristics.deep_learning_models.simple_gru_model import GRUModel
 from src.heuristics.min_events import MinEvents
 import src.narration as N
@@ -26,13 +27,14 @@ def main():
     narrator = N.Narrator(story)
     # heuristic = LSTMModel()
     # heuristic.eval()
-    heuristic = MinEvents()
+    # heuristic = MinEvents()
+    heuristic = AverageSalience()
     inference_agent = GreedyAgent(heuristic=heuristic)
     n_models = 0
     for model in inference_agent.search(narrator):
         # print("model:", *model.get_model(), sep=" ", end="\n")
         print(
-            f"model @ {model.sentence_depth} - {model.priority:.6f}: ",
+            f"model @ {model.sentence_depth} > {model.priority:.6f}: ",
             *(
                 Formula.__str__(x)
                 for x in reversed(list(model.tableau.branch_formulas))
@@ -46,9 +48,10 @@ def main():
             *(str(x) for x in reversed(list(model.tableau.branch_entities))),
             sep="\n ",
         )
+        print("Saliences:", model.salience_records, sep="\n")
         print("-" * 30)
         n_models += 1
-    print(n_models)
+    print(model.salience_records)
 
 
 if __name__ == "__main__":

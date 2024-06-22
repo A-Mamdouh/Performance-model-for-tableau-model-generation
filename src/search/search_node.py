@@ -39,7 +39,6 @@ class TableauSearchNode:
                 new_record[key] = value * salience_decay
         for word in tableau_words:
             new_record[word] = initial_salience
-        print("RECORD>>", new_record)
         return new_record
 
     def __lt__(self, other: Any) -> bool:

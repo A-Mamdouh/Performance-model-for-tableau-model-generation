@@ -6,7 +6,14 @@ import torch
 import tqdm
 
 from src.heuristics.highest_salience_first import AverageSalience
-from src.heuristics.learned_heuristics.deep_learning_models.simple_gru_model import GRUModel, GRUModelConfig
+from src.heuristics.learned_heuristics.deep_learning_models.simple_gru_model import (
+    GRUModel,
+    GRUModelConfig,
+)
+from src.heuristics.learned_heuristics.deep_learning_models.gru_with_word_embedding import (
+    GRUModel2,
+    GRUModelConfig2,
+)
 from src.heuristics.min_events import MinEvents
 from src import narration
 from src.search.informed_agents import GreedyAgent
@@ -33,17 +40,21 @@ def make_narrator() -> narration.Narrator:
         narration.NounVerbSentence(bob, eat),
     ]
     return narration.Narrator(story)
+
+
 narrator = make_narrator()
 
-# %%
-def get_target_models(agent: GreedyAgent, narrator: narration.Narrator) -> List[HeuristicTableauSearchNode]:
-    return list(agent.search(narrator.copy()))
 
-models = get_target_models(GreedyAgent(AverageSalience()), narrator)
+# %%
+def get_target_models(
+    agent: GreedyAgent, narrator: narration.Narrator
+) -> List[HeuristicTableauSearchNode]:
+    return list(agent.search(narrator.copy()))
 
 
 # %%
 def get_training_sequences(
+    model: GRUModel | GRUModel2,
     solved_tree: List[HeuristicTableauSearchNode],
     device: str | torch.device,
 ) -> tuple[List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
@@ -66,7 +77,8 @@ def get_training_sequences(
         sequence_depths: List[int] = []
         current: HeuristicTableauSearchNode = leaf
         while current:
-            sequence.append(GRUModel.get_node_encoding(current))
+            encoding = model.get_node_encoding(current).to(device)
+            sequence.append(encoding)
             sequence_labels.append(current.priority)
             sequence_depths.append(current.sentence_depth)
             if depths.get(current.sentence_depth) is None:
@@ -97,26 +109,35 @@ def get_training_sequences(
     return sequences, labels, weights
 
 
-gru_model = GRUModel(
-    GRUModelConfig(
-        gru_num_layers=2,
-        latent_size=128,
-        hidden_size=512,
+gru_model = GRUModel2(
+    GRUModelConfig2(
+        gru_num_layers=3,
+        latent_size=256,
+        hidden_size=1024,
         dropout=0.0,
         bidirectional=False,
     )
 )
+
 gru_agent = GreedyAgent(heuristic=gru_model)
+
+models = get_target_models(GreedyAgent(AverageSalience()), narrator)
+
 train_sequences, train_labels, weights = get_training_sequences(
-    models, gru_model._cfg.device
+    gru_model, models, gru_model._cfg.device
 )
 
 
 # %%
 def train(
-    model: GRUModel, train_sequences, train_labels, weights, iters: int, lr: float
-):
-    loss_fn = lambda pred, label, weights: (((pred - label) ** 2) * weights).mean()
+    model: GRUModel | GRUModel2,
+    train_sequences,
+    train_labels,
+    weights,
+    iters: int,
+    lr: float,
+) -> List[float]:
+    loss_fn = lambda pred, label, weights: (((pred - label) ** 2) * weights).mean()  # noqa: E731 pylint: disable=C3001:unnecessary-lambda-assignment
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_history: List[float] = []
     flat_labels = torch.stack(train_labels, dim=0)
@@ -133,8 +154,10 @@ def train(
         iterator.set_description_str(f"Training loss: {loss_value:.4f}")
         loss_history.append(loss_value)
     return loss_history
+
+
 loss_history = train(
-    gru_model, train_sequences, train_labels, weights, iters=1000, lr=5e-4
+    gru_model, train_sequences, train_labels, weights, iters=200, lr=5e-4
 )
 plt.plot(loss_history)
 plt.show()
