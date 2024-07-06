@@ -2,26 +2,29 @@
 
 from typing import Any, Dict, Iterable
 
-import src.logic.syntax as S
-import src.logic.tableau as T
+import src.logic.base.syntax as S
+import src.logic.base.tableau as T
 
 
 def create_tableau_params(**overrides) -> Dict[str, Any]:
     """Return default parameters for a tableau"""
-    types = [S.Constant.Type() for _ in range(3)]
-    agents = [S.Constant.Agent() for _ in range(3)]
-    events = [S.Constant.Event() for _ in range(3)]
+    type_sort = S.Sort("Type")
+    agent_sort = S.Sort("Agent")
+    event_sort = S.Sort("Event")
+    agents = [agent_sort.make_constant() for _ in range(3)]
+    events = [event_sort.make_constant() for _ in range(3)]
+    types = [type_sort.make_constant() for _ in range(3)]
     formulas = [S.True_, S.Or(S.True_, S.False_)]
+    p1 = S.Predicate("p1", 2)
+    p2 = S.Predicate("p2", 2)
     for event, agent, type_ in zip(events, agents, types):
-        formulas.append(S.Agent(event, agent))
-        formulas.append(S.Type_(event, type_))
+        formulas.append(p1(event, agent))
+        formulas.append(p2(event, type_))
     formulas.append(S.Eq(S.True_, S.True_))
     formulas.append(S.Not(S.Eq(S.True_, S.False_)))
     entities = [*events, *types, *agents]
     for i in range(3):
-        formulas.append(
-            S.And(S.Type_(events[i], types[i]), S.Agent(events[i], agents[i]))
-        )
+        formulas.append(S.And(p2(events[i], types[i]), p1(events[i], agents[i])))
     return {
         **{"formulas": formulas, "entities": entities},
         **overrides,

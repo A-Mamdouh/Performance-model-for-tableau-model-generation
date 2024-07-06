@@ -3,8 +3,8 @@
 import itertools
 from test import tableau_utils
 
-import src.logic.syntax as S
-import src.logic.tableau as T
+import src.logic.base.syntax as S
+import src.logic.base.tableau as T
 
 
 class TestTableauMembers:

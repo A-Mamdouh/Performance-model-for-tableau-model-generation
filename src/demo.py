@@ -4,7 +4,7 @@ from src.heuristics.highest_salience_first import AverageSalience
 from src.heuristics.learned_heuristics.deep_learning_models.simple_gru_model import GRUModel
 from src.heuristics.min_events import MinEvents
 import src.narration as N
-from src.logic.syntax import Formula
+from src.logic.base.syntax import Formula
 from src.search.informed_agents import GreedyAgent
 
 

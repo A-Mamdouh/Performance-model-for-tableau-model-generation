@@ -4,8 +4,8 @@ import itertools
 from test import tableau_utils
 from typing import Iterable, List, Set
 
-import src.logic.calculus as C
-import src.logic.syntax as S
+import src.logic.base.calculus as C
+import src.logic.base.syntax as S
 
 
 class TestContradictions:
@@ -82,104 +82,24 @@ class TestContradictions:
                 tableaus[j].formulas = *tableaus[j].formulas, formula2
                 assert not any(map(C.is_branch_consistent, tableaus[max(i, j) :]))
 
-    def test_event_multiple_agents_fails(self) -> None:
-        """Check if contradiction is detected when an event has multiple agents"""
-        chain_length = 4
-        for i in range(chain_length):
-            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
-            tableau = tableaus[i]
-            event = S.Constant.Event()
-            agent1 = S.Constant.Agent()
-            agent2 = S.Constant.Agent()
-            tableau.formulas = (
-                *tableau.formulas,
-                S.Agent(event, agent1),
-                S.Agent(event, agent2),
-            )
-            # Remove True_ from branch to not trigger other contradiction condition
-            for tableau in tableaus:
-                tableau.formulas = list(
-                    filter(lambda f: f is not S.True_, tableau.formulas)
-                )
-            assert not any(map(C.is_branch_consistent, tableaus[i:]))
-        # Check when only the contradiction exists
-        for i in range(chain_length):
-            tableaus = list(
-                tableau_utils.create_tableau_chain(chain_length, formulas=[])
-            )
-            tableau = tableaus[i]
-            event = S.Constant.Event()
-            agent1 = S.Constant.Agent()
-            agent2 = S.Constant.Agent()
-            tableau.formulas = (
-                *tableau.formulas,
-                S.Agent(event, agent1),
-                S.Agent(event, agent2),
-            )
-            # Remove True_ from branch to not trigger other contradiction condition
-            for tableau in tableaus:
-                tableau.formulas = list(
-                    filter(lambda f: f is not S.True_, tableau.formulas)
-                )
-            assert not any(map(C.is_branch_consistent, tableaus[i:]))
-
-    def test_event_multiple_types_fails(self) -> None:
-        """Check if contradiction is detected when an event has multiple types"""
-        chain_length = 4
-        for i in range(chain_length):
-            tableaus = list(tableau_utils.create_tableau_chain(chain_length))
-            tableau = tableaus[i]
-            event = S.Constant.Event()
-            type1 = S.Constant.Type()
-            type2 = S.Constant.Type()
-            tableau.formulas = (
-                *tableau.formulas,
-                S.Type_(event, type1),
-                S.Type_(event, type2),
-            )
-            # Remove True_ from branch to not trigger other contradiction condition
-            for tableau in tableaus:
-                tableau.formulas = list(
-                    filter(lambda f: f is not S.True_, tableau.formulas)
-                )
-            assert not any(map(C.is_branch_consistent, tableaus[i:]))
-        # Check when only the contradiction exists
-        for i in range(chain_length):
-            tableaus = list(
-                tableau_utils.create_tableau_chain(chain_length, formulas=[])
-            )
-            tableau = tableaus[i]
-            event = S.Constant.Event()
-            type1 = S.Constant.Type()
-            type2 = S.Constant.Type()
-            tableau.formulas = (
-                *tableau.formulas,
-                S.Type_(event, type1),
-                S.Type_(event, type2),
-            )
-            # Remove True_ from branch to not trigger other contradiction condition
-            for tableau in tableaus:
-                tableau.formulas = list(
-                    filter(lambda f: f is not S.True_, tableau.formulas)
-                )
-            assert not any(map(C.is_branch_consistent, tableaus[i:]))
-
     def test_equality_contradictions(self) -> None:
         """Check if incorrect equalities are detected"""
         chain_length = 4
+        sort = S.Sort(f"{__name__}_sort")
         for i in range(chain_length):
             tableaus = list(tableau_utils.create_tableau_chain(chain_length))
-            c1 = S.Constant.Agent()
-            c2 = S.Constant.Agent()
+            c1 = sort.make_constant()
+            c2 = sort.make_constant()
             tableaus[i].formulas = *tableaus[i].formulas, S.Eq(c1, c2)
             assert not C.is_branch_consistent(tableaus[i])
 
     def test_inequality_contradictions(self) -> None:
         """Check if incorrect inequalities are detected"""
         chain_length = 4
+        sort = S.Sort(f"{__name__}_sort")
         for i in range(chain_length):
             tableaus = list(tableau_utils.create_tableau_chain(chain_length))
-            c1 = S.Constant.Agent()
+            c1 = sort.make_constant()
             tableaus[i].formulas = *tableaus[i].formulas, S.Not(S.Eq(c1, c1))
             assert not C.is_branch_consistent(tableaus[i])
 
@@ -190,9 +110,10 @@ class TestConjunctionElim:
     def test_only_current_leaf_is_checked_for_conjunctions(self) -> None:
         """Make sure only conjuncts from the passed node are resolved"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(2)]
         conjunctions = [S.And(a, b) for a, b in itertools.product(formulas, formulas)]
-        formulas2 = [p(S.Constant.Agent()) for _ in range(2)]
+        formulas2 = [p(sort.make_constant()) for _ in range(2)]
         conjunctions2 = [S.And(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(chain_length):
@@ -215,7 +136,8 @@ class TestConjunctionElim:
     def test_only_unique_formluas_are_added(self) -> None:
         """Check if new formulas are checked for uniqueness against each other"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(2)]
         conjunctions = [S.And(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(1, chain_length):
@@ -232,7 +154,8 @@ class TestConjunctionElim:
     def test_only_branch_unique_formluas_are_added(self) -> None:
         """Check if new formulas are checked for uniqueness against the branch formulas"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(2)]
         conjunctions = [S.And(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(1, chain_length):
@@ -249,7 +172,8 @@ class TestConjunctionElim:
     def test_all_conjuncts_are_resolved(self) -> None:
         """Check if all conjuncts are produced, and output tableau only has the conjuncts"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(2)]
         conjunctions = [S.And(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(chain_length):
@@ -269,7 +193,8 @@ class TestConjunctionElim:
     def test_output_tableau_parent_is_input_tableau(self) -> None:
         """Check if the parent of the output tableau is the input tableau"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(1)]
         conjunctions = [S.And(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(chain_length):
@@ -313,7 +238,8 @@ class TestDoubleNegation:
     def test_double_negation_removed(self) -> None:
         """Test that double nedation removes double negations"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(1)]
         d_negations = [S.Not(S.Not(f)) for f in formulas]
         chain_length = 4
         for i in range(chain_length):
@@ -350,7 +276,8 @@ class TestDoubleNegation:
     def test_double_negation_correct_parent(self) -> None:
         """Check that the output tableau has the correct parent set"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(1)]
         d_negations = [S.Not(S.Not(f)) for f in formulas]
         chain_length = 4
         for i in range(chain_length):
@@ -366,7 +293,8 @@ class TestDoubleNegation:
     def test_double_negation_unique_formulas(self) -> None:
         """Check that the output tableau has unique formulas (no branch or local duplicates)"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(1)]
         d_negations = [S.Not(S.Not(f)) for f in formulas]
         chain_length = 4
         for i in range(chain_length):
@@ -389,9 +317,10 @@ class TestDisjunctionElim:
     def test_only_current_node_is_checked_for_disjunctions(self) -> None:
         """Make sure only conjuncts from the passed node are resolved"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(2)]
         disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
-        formulas2 = [p(S.Constant.Agent()) for _ in range(2)]
+        formulas2 = [p(sort.make_constant()) for _ in range(2)]
         disjunctions2 = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(chain_length):
@@ -415,7 +344,8 @@ class TestDisjunctionElim:
     def test_only_unique_formluas_are_added(self) -> None:
         """Check if new formulas are checked for uniqueness against each other"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(2)]
         disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(1, chain_length):
@@ -433,7 +363,8 @@ class TestDisjunctionElim:
     def test_only_branch_unique_formluas_are_added(self) -> None:
         """Check if new formulas are checked for uniqueness against the branch formulas"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(2)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(2)]
         disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(1, chain_length):
@@ -452,7 +383,8 @@ class TestDisjunctionElim:
         """Check if all conjuncts are produced, and output tableau only has the conjuncts"""
         # pylint: disable=too-many-locals
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(4)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(4)]
         # Only add unique pairs (no order)
         disjunctions: List[S.Or] = []
         for i, left in enumerate(formulas):
@@ -494,7 +426,8 @@ class TestDisjunctionElim:
     def test_output_tableau_parent_is_input_tableau(self) -> None:
         """Check if the parent of the output tableau is the input tableau"""
         p = S.Predicate("P", 1)
-        formulas = [p(S.Constant.Agent()) for _ in range(1)]
+        sort = S.Sort(f"{__name__}_sort")
+        formulas = [p(sort.make_constant()) for _ in range(1)]
         disjunctions = [S.Or(a, b) for a, b in itertools.product(formulas, formulas)]
         chain_length = 4
         for i in range(chain_length):
@@ -555,16 +488,20 @@ class TestForAll:
     def test_returns_all_instances_of_axioms(self) -> None:
         """Test if all entities of the axiom sort are instantiated"""
         chain_length = 4
-        axioms = [
-            S.Forall(S.Predicate(f"p_{i}", 1), S.Term.Sort.EVENT) for i in range(4)
-        ]
+        sort = S.Sort(f"{__name__}_sort")
+        axioms = [S.Forall(S.Predicate(f"p_{i}", 1), sort) for i in range(4)]
         for i in range(chain_length):
             for j in range(i + 1, chain_length):
                 tableaus = list(tableau_utils.create_tableau_chain(chain_length))
-                # Add axioms and remove existing ones
                 for tableau in tableaus:
+                    # Add axioms and remove existing ones
+                    # Add entities that match the sort
                     tableau.formulas = filter(
                         lambda f: not isinstance(f, S.Forall), tableau.formulas
+                    )
+                    tableau.entities = (
+                        *tableau.entities,
+                        *[sort.make_constant() for _ in range(3)],
                     )
                 tableaus[i].formulas = *tableaus[i].formulas, *axioms
                 output = C.try_forall_elim(tableaus[j])

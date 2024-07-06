@@ -12,7 +12,7 @@ from src.heuristics.context_token import ContextToken
 from src.heuristics.learned_heuristics.deep_learning_models.word_encoder import (
     WordEncoder,
 )
-from src.logic.tableau import EventInformation
+from src.logic.base.tableau import EventInformation
 from src.search.search_node import TableauSearchNode
 
 

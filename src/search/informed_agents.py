@@ -3,7 +3,7 @@
 from src.search.search_agent_base import InferenceAgent
 from src.search.search_node import HeuristicTableauSearchNode, TableauSearchNode
 from src.heuristics.base_heuristic import Heuristic
-import src.logic.tableau as T
+import src.logic.base.tableau as T
 
 
 class GreedyAgent(InferenceAgent):

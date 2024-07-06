@@ -6,9 +6,9 @@ from operator import add
 from queue import PriorityQueue
 from typing import Generator, List
 
-import src.logic.calculus as C
-import src.logic.syntax as S
-import src.logic.tableau as T
+import src.logic.base.calculus as C
+import src.logic.base.syntax as S
+import src.logic.base.tableau as T
 import src.narration as N
 from src.search.search_node import TableauSearchNode
 

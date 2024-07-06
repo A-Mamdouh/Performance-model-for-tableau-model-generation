@@ -2,7 +2,7 @@
 Testing syntax implementation
 """
 
-import src.logic.syntax as S
+import src.logic.base.syntax as S
 
 
 class TestOperatorHeirarchy:

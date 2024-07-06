@@ -4,24 +4,30 @@
 import functools
 import itertools
 import operator
-from typing import Generator, Iterable, List, Optional, Set, Tuple
+from typing import Callable, Generator, Iterable, List, Optional, Set, Tuple
 
-import src.logic.syntax as S
-import src.logic.tableau as T
+import src.logic.base.syntax as S
+import src.logic.base.tableau as T
 
 
-def generate_models(tableau: T.Tableau) -> Generator[T.Tableau, None, None]:
+def generate_models(
+    tableau: T.Tableau, axioms: Iterable[Callable[[T.Tableau], T.Tableau]]
+) -> Generator[T.Tableau, None, None]:
     """Generate possible models of the"""
     # First, apply non-branching rules to the tableau until none can be applied
     maximal_non_branching = try_non_branching_rules(tableau)
-    # Then, apply branching rules and collect branches
-    branches = None
+    # Then, figure out the tableau to be used for branching
+    branching_root = tableau
     if maximal_non_branching:
-        branches = try_branching_rules(
-            T.Tableau.merge(maximal_non_branching, tableau, parent=tableau)
-        )
+        branching_root = T.Tableau.merge(maximal_non_branching, tableau, parent=tableau)
     else:
-        branches = try_branching_rules(tableau)
+        branching_root = tableau
+    # Invoke axioms on the branching root
+    branching_root = T.Tableau.merge(
+        branching_root, *map(lambda axiom: (branching_root), axioms), parent=tableau
+    )
+    # Collect branches from branching rules
+    branches = try_branching_rules(branching_root)
     # If no branches are produces, resolve now
     if not branches:
         # Yield if maximal non-branching tableau is consistent
@@ -31,7 +37,7 @@ def generate_models(tableau: T.Tableau) -> Generator[T.Tableau, None, None]:
     # Loop over branches and expand the branches
     for branch in filter(is_branch_consistent, branches):
         # Recursively generate models
-        outputs = list(generate_models(branch))
+        outputs = list(generate_models(branch, axioms))
         if outputs:
             yield from outputs
         else:
@@ -111,15 +117,6 @@ def is_branch_consistent(tableau: T.Tableau) -> bool:
         if isinstance(formula, S.Not):
             if formula.formula in branch_formulas:
                 return False
-    for event_info in tableau.branch_event_info:
-        # At most one agent per event
-        agents = list(map(lambda literal: literal.agent, event_info.positive_agents))
-        if len(agents) > 1:
-            return False
-        # At most one type per event
-        types = list(map(lambda literal: literal.type_, event_info.positive_types))
-        if len(types) > 1:
-            return False
     # Check equality violations
     for formula in tableau.formulas:
         if isinstance(formula, S.Eq):

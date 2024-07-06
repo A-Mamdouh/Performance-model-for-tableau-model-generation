@@ -9,7 +9,7 @@ import torch
 
 from src.heuristics.base_heuristic import Heuristic
 from src.heuristics.context_token import ContextToken
-from src.logic.tableau import EventInformation
+from src.logic.base.tableau import EventInformation
 from src.search.search_node import TableauSearchNode
 
 

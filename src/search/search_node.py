@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from src.heuristics.context_token import ContextToken
-import src.logic.syntax as S
-import src.logic.tableau as T
+import src.logic.base.syntax as S
+import src.logic.base.tableau as T
 
 
 @dataclass

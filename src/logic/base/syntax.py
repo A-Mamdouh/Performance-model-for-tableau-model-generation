@@ -1,7 +1,8 @@
+"""This module implements a syntax base for sorted logic fragments"""
+
 from typing import Callable, List, Optional, Union
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from enum import Enum
 
 
 __all__ = (
@@ -15,8 +16,6 @@ __all__ = (
     "Not",
     "Or",
     "Implies",
-    "Agent",
-    "Type_",
     "PartialFormula",
     "Quantifier",
     "QuantifiedFormula",
@@ -34,13 +33,19 @@ __all__ = (
 )
 
 
+@dataclass(frozen=True, eq=True)
+class Sort:
+    """Sort of a term, since the logic is sorted"""
+
+    name: str
+
+    def make_constant(self, name: Optional[str] = None) -> "Constant":
+        """Create a constant of this sort"""
+        return Constant(self, name)
+
+
 class Term(ABC):
     """Term productions"""
-
-    class Sort(Enum):
-        EVENT = 0
-        TYPE = 1
-        AGENT = 2
 
     def __init__(self, sort: Sort):
         self.sort = sort
@@ -67,7 +72,7 @@ class Constant(Term):
 
     _id: int = 0
 
-    def __init__(self, sort: Term.Sort, name: Optional[str] = None):
+    def __init__(self, sort: Sort, name: Optional[str] = None):
         super().__init__(sort)
         if name is not None:
             assert not name.startswith("_")
@@ -80,27 +85,7 @@ class Constant(Term):
             self.name = name
 
     def _get_str(self) -> str:
-        match self.sort:
-            case Term.Sort.EVENT:
-                return f"Event({self.name})"
-            case Term.Sort.TYPE:
-                return f"Type({self.name})"
-            case Term.Sort.AGENT:
-                return f"Agent({self.name})"
-            case _:
-                raise ValueError(f"Undefined constant sort: {self.sort}")
-
-    @classmethod
-    def Event(cls, name: Optional[str] = None) -> "Constant":
-        return cls(Term.Sort.EVENT, name)
-
-    @classmethod
-    def Agent(cls, name: Optional[str] = None) -> "Constant":
-        return cls(Term.Sort.AGENT, name)
-
-    @classmethod
-    def Type(cls, name: Optional[str] = None) -> "Constant":
-        return cls(Term.Sort.TYPE, name)
+        return f"{self.sort.name}({self.name})"
 
 
 class Variable(Term):
@@ -108,7 +93,7 @@ class Variable(Term):
 
     _id: int = 0
 
-    def __init__(self, sort: Term.Sort, name: Optional[str] = None):
+    def __init__(self, sort: Sort, name: Optional[str] = None):
         super().__init__(sort)
         if name is not None:
             assert not name.startswith("_")
@@ -154,12 +139,26 @@ class Formula(ABC):
     def __mul__(self, other) -> "And":
         return And(self, other)
 
+    def __or__(self, other) -> "Or":
+        return self + other
+
+    def __and__(self, other) -> "And":
+        return self * other
+
+    def __rshift__(self, other) -> "Implies":
+        return Implies(self, other)
+
+    def __invert__(self) -> "Not":
+        return -self
+
     def __neg__(self) -> "Not":
         return Not(self)
 
 
 @dataclass
 class Predicate:
+    """A predicate / n-ary relation"""
+
     name: str
     arity: int
 
@@ -172,6 +171,8 @@ class Predicate:
 
 @dataclass
 class AppliedPredicate(Formula):
+    """Predicate applied to terms"""
+
     predicate: Predicate
     args: List[Term]
 
@@ -196,6 +197,8 @@ class AppliedPredicate(Formula):
 
 
 class LogicalConstant(AppliedPredicate):
+    """Local constants"""
+
     def __init__(self, name):
         self._predicate = Predicate(name, 0)
         super().__init__(self._predicate, [])
@@ -203,6 +206,8 @@ class LogicalConstant(AppliedPredicate):
 
 @dataclass
 class And(Formula):
+    """Conjunction Formula"""
+
     left: Formula
     right: Formula
 
@@ -223,6 +228,8 @@ class And(Formula):
 
 @dataclass
 class Not(Formula):
+    """Negation Formula"""
+
     formula: Formula
 
     def __post_init__(self):
@@ -241,6 +248,8 @@ class Not(Formula):
 
 
 class Or(Not):
+    """Disjunction formulas"""
+
     def __init__(self, left: Formula, right: Formula):
         super().__init__(And(Not(left), Not(right)))
         self.left = left
@@ -251,6 +260,8 @@ class Or(Not):
 
 
 class Implies(Or):
+    """Implication formulas"""
+
     def __init__(self, pre: Formula, post: Formula):
         super().__init__(Not(pre), post)
         self.pre = pre
@@ -266,6 +277,8 @@ False_ = LogicalConstant("F")
 
 @dataclass
 class Quantifier:
+    """A quantifier object"""
+
     name: str
 
     def __str__(self) -> str:
@@ -276,17 +289,18 @@ class Quantifier:
 
 
 class PartialFormula:
+    """Lambda handling object"""
+
     def __init__(
-        self, callable: Callable[[Term], Union[Formula, "PartialFormula"]]
+        self,
+        callable_: Callable[[Term], Union[Formula, "PartialFormula"]],
+        sort: Sort,
     ) -> None:
-        self.callable = callable
+        self.callable = callable_
+        self._sort = sort
 
     def __call__(self, term: Term) -> Union[Formula, "PartialFormula"]:
-        out = self.callable(term)
-        if isinstance(out, Formula):
-            return out
-        else:
-            return PartialFormula(out)
+        return self.callable(term)
 
     def _make_str(self, x: int = 0) -> str:
         v = Variable(f"x{x}")
@@ -301,7 +315,7 @@ class PartialFormula:
 
     def __eq__(self, o2: object) -> str:
         if isinstance(o2, PartialFormula):
-            v = Variable(Term.Sort.EVENT, "temp")
+            v = Variable(self._sort, "temp")
             return self(v) == o2(v)
         return False
 
@@ -311,17 +325,19 @@ class PartialFormula:
 
 @dataclass
 class QuantifiedFormula(Formula):
+    """Implementation of a quantified formula"""
+
     quantifier: Quantifier
     partial_formula: PartialFormula
     variable: Optional[Variable] = None
-    sort: Optional[Term.Sort] = None
+    sort: Optional[Sort] = None
 
     def __post_init__(self):
         assert (self.sort is None) ^ (self.variable is None)
         if self.variable is None:
             self.variable = Variable(self.sort)
         if not isinstance(self.partial_formula, PartialFormula):
-            self.partial_formula = PartialFormula(self.partial_formula)
+            self.partial_formula = PartialFormula(self.partial_formula, self.sort)
         self.sort = self.variable.sort
         super().__init__()
 
@@ -347,9 +363,11 @@ class QuantifiedFormula(Formula):
 
 @dataclass
 class FocusQuantifiedFormula(Formula):
+    """Focused quantified formula wrapper"""
+
     quantifier: Quantifier
     variable: Variable
-    sort: Term.Sort
+    sort: Sort
     unfocused_partial: PartialFormula
     focused_partial: PartialFormula
 
@@ -358,18 +376,20 @@ class FocusQuantifiedFormula(Formula):
         if self.variable is None:
             self.variable = Variable(self.sort)
         if not isinstance(self.unfocused_partial, PartialFormula):
-            self.unfocused_partial = PartialFormula(self.unfocused_partial)
+            self.unfocused_partial = PartialFormula(self.unfocused_partial, self.sort)
         if not isinstance(self.focused_partial, PartialFormula):
-            self.focused_partial = PartialFormula(self.focused_partial)
+            self.focused_partial = PartialFormula(self.focused_partial, self.sort)
         self.sort = self.variable.sort
         super().__init__()
 
     @property
     def unfocused(self) -> Union[Formula, PartialFormula]:
+        """Unfocused part of the formula with the variable applied"""
         return self.unfocused_partial(self.variable)
 
     @property
     def focused(self) -> Union[Formula, PartialFormula]:
+        """Focused part of the formula with the variable applied"""
         return self.focused_partial(self.variable)
 
     def _get_str(self) -> str:
@@ -390,22 +410,26 @@ class FocusQuantifiedFormula(Formula):
 
 
 class Forall(QuantifiedFormula):
+    """Forall formulas"""
+
     _quantifier = Quantifier("A")
 
     def __init__(
         self,
         partial_formula: PartialFormula,
-        sort: Optional[Term.Sort] = None,
+        sort: Optional[Sort] = None,
         variable: Optional[Variable] = None,
     ) -> None:
         super().__init__(self._quantifier, partial_formula, variable, sort)
 
 
 class Exists(Not):
+    """Existential formulas"""
+
     def __init__(
         self,
         partial_formula: PartialFormula,
-        sort: Optional[Term.Sort] = None,
+        sort: Optional[Sort] = None,
         variable: Optional[Variable] = None,
     ):
         f = Forall(lambda x: Not(partial_formula(x)), sort, variable)
@@ -419,13 +443,15 @@ class Exists(Not):
 
 
 class ForallF(FocusQuantifiedFormula):
+    """Focused forall formulas"""
+
     _quantifier = Quantifier("A")
 
     def __init__(
         self,
         unfocsed_partial_formula: PartialFormula,
         focused_partial_formula,
-        sort: Optional[Term.Sort] = None,
+        sort: Optional[Sort] = None,
         variable: Optional[Variable] = None,
     ) -> None:
         super().__init__(
@@ -438,11 +464,13 @@ class ForallF(FocusQuantifiedFormula):
 
 
 class ExistsF(Not):
+    """Focused existential formulas"""
+
     def __init__(
         self,
         unfocused_partial: PartialFormula,
         focused_partial: PartialFormula,
-        sort: Optional[Term.Sort],
+        sort: Optional[Sort],
         variable: Optional[Variable] = None,
     ):
         f = ForallF(
@@ -465,22 +493,9 @@ def is_literal(f: Formula) -> bool:
     )
 
 
-class Agent(AppliedPredicate):
-    _agent: Predicate = Predicate("ag", 2)
-
-    def __init__(self, event: Term, agent: Term):
-        super().__init__(Agent._agent, [event, agent])
-
-    @property
-    def event(self) -> Term:
-        return self.args[0]
-
-    @property
-    def agent(self) -> Term:
-        return self.args[1]
-
-
 class Eq(AppliedPredicate):
+    """Identity relation"""
+
     _eq: Predicate = Predicate("eq", 2)
 
     def __init__(self, left: Term, right: Term):
@@ -492,46 +507,18 @@ class Eq(AppliedPredicate):
         return f"{self.left} = {self.right}"
 
 
-class Type_(AppliedPredicate):
-    _type_: Predicate = Predicate("ty", 2)
-
-    def __init__(self, event: Term, type_: Term):
-        super().__init__(Type_._type_, [event, type_])
-
-    @property
-    def event(self) -> Term:
-        return self.args[0]
-
-    @property
-    def type_(self) -> Term:
-        return self.args[1]
-
-
 Literal = AppliedPredicate | Not
-
-
-def get_words(literals: List[Literal]) -> List[str]:
-    """Return the list of included words from the input list"""
-    words = set()
-    for literal in literals:
-        if isinstance(literal, Not):
-            literal = literal.formula
-        if isinstance(literal, Agent):
-            words.add(literal.agent.name)
-        if isinstance(literal, Type_):
-            words.add(literal.type_.name)
-    return list(words)
 
 
 if __name__ == "__main__":
     p = Predicate("p", 4)
+    event_sort = Sort("Event")
     f = Forall(
         lambda x: Forall(
-            lambda y: Implies(
-                Eq(x, y), Or(Eq(y, x), Exists(lambda z: p(x, y, z, x), Term.Sort.EVENT))
-            ),
-            Term.Sort.EVENT,
+            lambda y: Eq(x, y)
+            >> (Eq(y, x) | Exists(lambda z: p(x, y, z, x), event_sort)),
+            event_sort,
         ),
-        Term.Sort.EVENT,
+        event_sort,
     )
     print(f)

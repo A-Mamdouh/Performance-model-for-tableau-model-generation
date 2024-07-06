@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence, Iterable
 from enum import Enum
 
-from src.logic.syntax import (
+from src.logic.base.syntax import (
     Agent,
     And,
     Constant,
