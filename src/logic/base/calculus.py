@@ -17,17 +17,17 @@ def generate_models(
     # First, apply non-branching rules to the tableau until none can be applied
     maximal_non_branching = try_non_branching_rules(tableau)
     # Then, figure out the tableau to be used for branching
-    branching_root = tableau
+    maximal_non_branching = tableau
     if maximal_non_branching:
-        branching_root = T.Tableau.merge(maximal_non_branching, tableau, parent=tableau)
+        maximal_non_branching = T.Tableau.merge(maximal_non_branching, tableau, parent=tableau)
     else:
-        branching_root = tableau
+        maximal_non_branching = tableau
     # Invoke axioms on the branching root
-    branching_root = T.Tableau.merge(
-        branching_root, *map(lambda axiom: (branching_root), axioms), parent=tableau
+    maximal_non_branching = T.Tableau.merge(
+        maximal_non_branching, *map(lambda axiom: axiom(maximal_non_branching), axioms), parent=tableau
     )
     # Collect branches from branching rules
-    branches = try_branching_rules(branching_root)
+    branches = try_branching_rules(maximal_non_branching)
     # If no branches are produces, resolve now
     if not branches:
         # Yield if maximal non-branching tableau is consistent

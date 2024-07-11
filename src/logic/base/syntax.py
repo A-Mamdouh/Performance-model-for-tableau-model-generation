@@ -1,6 +1,7 @@
 """This module implements a syntax base for sorted logic fragments"""
 
-from typing import Callable, List, Optional, Union
+import itertools
+from typing import Callable, List, Optional, Tuple, Union
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
@@ -161,11 +162,24 @@ class Predicate:
 
     name: str
     arity: int
+    sorts: Optional[Tuple[Sort]] = None
+
+    def __post_init__(self) -> None:
+        if self.sorts is not None:
+            assert len(self.sorts) == self.arity
+    
+    @property
+    def is_typed(self) -> bool:
+        """return true if the predicate has typed arguments"""
+        return self.sorts is not None
 
     def __str__(self) -> str:
         return f"{self.name}\\{self.arity}"
 
     def __call__(self, *args: List[Term]) -> "AppliedPredicate":
+        if self.sorts is not None:
+            # Make sure arguments are properly sorted
+            assert all(itertools.starmap(lambda term, sort: term.sort is sort, zip(args, self.sorts)))
         return AppliedPredicate(self, args)
 
 
