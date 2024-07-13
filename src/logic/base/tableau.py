@@ -72,11 +72,10 @@ class Tableau:
         entities = set(
             itertools.chain(*map(lambda tableau: tableau.entities, tableaus))
         )
+        merged_tableau = Tableau(formulas=formulas, entities=entities, parent=None)
         if parent:
-            formulas.difference_update(parent.branch_formulas)
-            entities.difference_update(parent.branch_entities)
-        # Create a tableau from the merged formulas and entities, with the passed parent
-        merged_tableau = Tableau(formulas=formulas, entities=entities, parent=parent)
+            merged_tableau = parent.get_unique_tableau(merged_tableau)
+            merged_tableau.parent = parent
         return merged_tableau
 
     def copy(self) -> "Tableau":
@@ -95,3 +94,13 @@ class Tableau:
         )
         ordered_entities: Tuple[S.Term] = tuple(sorted(map(str, self.entities)))
         return hash((ordered_formulas, ordered_entities))
+
+    def get_unique_tableau(self, leaf: "Tableau") -> "Tableau":
+        """Given a leaf without a parent, create a leaf that only contains
+        new formulas and entities to this branch
+        """
+        formulas = set(leaf.formulas)
+        entities = set(leaf.entities)
+        formulas.difference_update(self.branch_formulas)
+        entities.difference_update(self.branch_entities)
+        return Tableau(list(formulas), list(entities), parent=leaf.parent)
