@@ -1,37 +1,9 @@
 """This module implements a syntax base for sorted logic fragments"""
 
 import itertools
-from typing import Callable, List, Optional, Tuple, Union
-from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
-
-
-__all__ = (
-    "Term",
-    "Constant",
-    "Variable",
-    "Formula",
-    "Predicate",
-    "AppliedPredicate",
-    "And",
-    "Not",
-    "Or",
-    "Implies",
-    "PartialFormula",
-    "Quantifier",
-    "QuantifiedFormula",
-    "FocusQuantifiedFormula",
-    "Forall",
-    "ForallF",
-    "Exists",
-    "ExistsF",
-    "Literal",
-    "LogicalConstant",
-    "True_",
-    "False_",
-    "Eq",
-    "is_literal",
-)
 
 
 @dataclass(frozen=True, eq=True)
@@ -82,6 +54,24 @@ class Constant(Term):
         if name is None:
             self.name = f"_C{Constant._id}"
             Constant._id += 1
+        else:
+            self.name = name
+
+    def _get_str(self) -> str:
+        return f"{self.sort.name}({self.name})"
+
+
+class EConstant(Term):
+    """Constant without the unique name assumption productions"""
+
+    _id: int = 0
+
+    def __init__(self, sort: Sort, name: Optional[str] = None) -> None:
+        super().__init__(sort)
+        if name is not None:
+            assert not name.startwith("_")
+            self.name = f"_C({EConstant._id})"
+            EConstant._id += 1
         else:
             self.name = name
 
@@ -522,6 +512,69 @@ class Eq(AppliedPredicate):
 
 
 Literal = AppliedPredicate | Not
+
+
+@dataclass
+class Substitution:
+    """A wrapper for a simple dictionary for a substitution"""
+
+    inner_dict: Dict[Term, Term] = field(default_factory=dict)
+
+    def apply(self, term: Term) -> Term:
+        """Apply substitution to a term"""
+        if isinstance(term, Variable):
+            return self.inner_dict.get(term) or term
+        if isinstance(term, Constant):
+            return self.inner_dict.get(term) or term
+        raise NotImplementedError(
+            "Applied Function Symbol terms are not implemented in the current fragment"
+        )
+
+    def _update(self, other: "Substitution") -> None:
+        """update substitution based on anoter substitution"""
+        self.inner_dict.update({k: other(v) for k, v in self.inner_dict.items()})
+
+    def __call__(self, term: Term) -> Term:
+        return self.apply(term)
+
+    @classmethod
+    def most_general_unifier(cls, equalities: List[Eq]) -> Optional["Substitution"]:
+        """Get the most general unifier for all the input equalities.
+        Returns None if no MGU is found"""
+        sub = cls()
+        for equality in equalities:
+            term1 = equality.left
+            term2 = equality.right
+            try:
+                new_sub = cls._unify(sub(term1), sub(term2))
+                sub._update(new_sub)
+            except AssertionError:
+                return None
+            except NotImplementedError:
+                return None
+        return sub
+
+    @classmethod
+    def _unify(cls, term1: Term, term2: Term) -> "Substitution":
+        """unify two terms"""
+        if term1 == term2:
+            return cls()
+        assert isinstance(term1, Constant) and isinstance(
+            term2, Constant
+        ), "Cannot unify two different constants"
+        # If one term is a variable, the second can be unified with the it... ?
+        if isinstance(term1, (Variable, EConstant)):
+            return cls({term1: term2})
+        if isinstance(term2, (Variable, EConstant)):
+            return cls({term2: term1})
+        # If both are complex terms, try unifying inner terms
+        raise NotImplementedError(
+            "Applied Function Symbol terms are not implemented in the current fragment"
+        )
+
+    def copy(self) -> "Substitution":
+        """Return a deep copy of this substitution"""
+        return Substitution({**self.inner_dict})
 
 
 if __name__ == "__main__":

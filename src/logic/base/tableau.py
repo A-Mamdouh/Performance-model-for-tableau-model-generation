@@ -2,7 +2,7 @@
 
 # pylint: disable=invalid-name
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Iterable, Optional, Tuple
 import itertools
 
 import src.logic.base.syntax as S
@@ -20,6 +20,17 @@ class Tableau:
     entities: Iterable[S.Term] = field(default_factory=list)
     #: Parent node. None if this is the root node
     parent: Optional["Tableau"] = None
+    #: Current node substitution. This is important with non unique names
+    substitution: Optional[S.Substitution] = None
+
+    def __post_init__(self) -> None:
+        if self.substitution is None:
+            if self.parent is not None:
+                # Copy substitution from parent
+                self.substitution = self.parent.substitution.copy()
+            else:
+                # Create a new empty substitution
+                self.substitution = S.Substitution()
 
     @property
     def branch_formulas(self) -> Iterable[S.Formula]:

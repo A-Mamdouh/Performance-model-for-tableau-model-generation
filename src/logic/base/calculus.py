@@ -119,12 +119,21 @@ def is_branch_consistent(tableau: T.Tableau) -> bool:
                 return False
     # Check equality violations
     for formula in tableau.formulas:
-        if isinstance(formula, S.Eq):
-            if formula.left != formula.right:
-                return False
-        if isinstance(formula, S.Not) and isinstance(formula.formula, S.Eq):
-            if formula.formula.left == formula.formula.right:
-                return False
+        if (
+            isinstance(formula, S.Eq)
+            and isinstance(formula.left, S.Constant)
+            and isinstance(formula.right, S.Constant)
+            and formula.left != formula.right
+        ):
+            return False
+        if (
+            isinstance(formula, S.Not)
+            and isinstance(formula.formula, S.Eq)
+            and isinstance(formula.formula.left, S.Constant)
+            and isinstance(formula.formula.right, S.Constant)
+            and formula.formula.left != formula.formula.right
+        ):
+            return False
     return True
 
 
