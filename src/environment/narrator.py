@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import itertools
 from typing import Callable, ClassVar, List
 
 from src.logic.base.syntax import Constant, Exists
@@ -40,18 +41,30 @@ class SimpleEventSentence(ABC):
 
 
 class AccusativeSentence(ABC):
-    """Productions of x witnessed \phi. These sentences include 2 events at once"""
+    """Productions of x witnessed phi. These sentences include 2 events at once"""
 
     @abstractmethod
-    def get_all_readings(self) -> List[List[SimpleEventSentence]]:
+    def get_all_readings_sentences(self) -> List[List[SimpleEventSentence]]:
         """Return all possible readings of the witnessed event"""
+    
+    def get_all_readings(self) -> List[Tableau]:
+        """Return all possible tableau readings"""
+        readings = self.get_all_readings_sentences()
+        output: List[Tableau] = []
+        for sentences in readings:
+            branches: List[List[Tableau]] = []
+            for sentence in sentences:
+                branches.append(sentence.get_all_readings())
+            branches = itertools.starmap(Tableau.merge, itertools.product(*branches))
+            output.extend(branches)
+        return output
 
 
 class NounVerbSentence(SimpleEventSentence):
     """Sentences of the form noun did verb"""
 
     # pylint: disable=C3001:unnecessary-lambda-assignment
-    def get_all_readings(self) -> List[Tableau]:
+    def get_all_readings(self) -> List[List[SimpleEventSentence]]:
         entities: Constant = []
         # Set subject lambda
         subject = lambda e: Exists(  # noqa: E731
@@ -95,14 +108,14 @@ class NounVerbSentence(SimpleEventSentence):
 class SomeoneHeardAnEvent(AccusativeSentence):
     """Someone heard someone else at a location"""
 
+    sentence_callable: Callable[[Location | None], SimpleEventSentence]
     accuser: Noun | None = None
     accused: Noun | None = None
     location: Location | None = None
-    sentence_callable: Callable[[Location | None], SimpleEventSentence]
 
     _heard: ClassVar[Verb] = Verb("hear", "heard")
 
-    def get_all_readings(self) -> List[List[SimpleEventSentence]]:
+    def get_all_readings_sentences(self) -> List[List[SimpleEventSentence]]:
         return [
             # accuser is at location
             [
@@ -127,12 +140,46 @@ class SomeoneHeardAnEvent(AccusativeSentence):
         ]
 
 
+@dataclass
+class SomeoneSawAnEvent(AccusativeSentence):
+    """Someone saw someone else at a location"""
+
+    sentence_callable: Callable[[Location | None], SimpleEventSentence]
+    accuser: Noun | None = None
+    accused: Noun | None = None
+    location: Location | None = None
+
+    _see: ClassVar[Verb] = Verb("see", "saw")
+
+    def get_all_readings_sentences(self) -> List[List[SimpleEventSentence]]:
+        return [
+            # accuser and accused is at location
+            [
+                NounVerbSentence(
+                    subject=self.accuser,
+                    verb=SomeoneSawAnEvent._see,
+                    object=self.accused,
+                    location=self.location,
+                ),
+                self.sentence_callable(self.location),
+            ],
+        ]
+
+
 if __name__ == "__main__":
-    sentence = NounVerbSentence(
-        subject="alex",
-        verb=Verb("see", "saw"),
-        object="alex",
-        location="library",
-    )
-    f = sentence.get_all_readings()[0].formulas[0]
-    print(f)
+    sentence = SomeoneHeardAnEvent(
+        sentence_callable=lambda location: NounVerbSentence(
+            subject="alex",
+            verb=Verb("take_knife", "took_knife"),
+            object="charlie",
+            location=location
+            ),
+            accuser="bob",
+            accused="alex",
+            location="library"
+        )
+    sep = "-" * 20
+    for tableau in sentence.get_all_readings():
+        for formula in tableau.formulas:
+            print(formula)
+        print(sep)

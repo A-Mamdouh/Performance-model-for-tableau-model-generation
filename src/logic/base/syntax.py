@@ -536,6 +536,20 @@ class Substitution:
 
     def __call__(self, term: Term) -> Term:
         return self.apply(term)
+    
+    @classmethod
+    def merge(cls, *substitutions: "Substitution") -> Optional["Substitution"]:
+        """Try to merge together substitutions with the mgu of them"""
+        if len(substitutions) == 1:
+            sub = list(substitutions)[0]
+            return sub.copy()
+        first, *rest = substitutions
+        merged_rest = Substitution.merge(rest)
+        output = first.copy()
+        for from_, to_ in merged_rest.inner_dict.values():
+            
+
+        # TODO: Implement this
 
     @classmethod
     def most_general_unifier(cls, equalities: List[Eq]) -> Optional["Substitution"]:

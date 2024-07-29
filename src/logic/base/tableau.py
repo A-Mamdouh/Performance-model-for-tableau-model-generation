@@ -73,8 +73,10 @@ class Tableau:
     @classmethod
     def merge(
         cls, *tableaus: "Tableau", parent: Optional["Tableau"] = None
-    ) -> "Tableau":
+    ) -> "Tableau" | None:
         """Merge given tableaus into one tableau containing all unique formulas and entities"""
+        if len(tableaus) == 0:
+            return Tableau(parent=parent)
         # Collect all unique formulas
         formulas = set(
             itertools.chain(*map(lambda tableau: tableau.formulas, tableaus))
@@ -83,7 +85,16 @@ class Tableau:
         entities = set(
             itertools.chain(*map(lambda tableau: tableau.entities, tableaus))
         )
-        merged_tableau = Tableau(formulas=formulas, entities=entities, parent=None)
+        # Merge substitutions
+        merged_substitution = S.Substitution.merge(*map(lambda tableau: tableau.substitution, tableaus))
+        # If merging substitutions fails, fail the tableau 
+        # FIXME: Add a false to the formulas or an incorrect equality so the rest of the code works as expected??
+        #               Or edit all calls of Tableau.merge
+        if merged_substitution is None:
+            return None
+        # Put together everything into new tableau
+        merged_tableau = Tableau(formulas=formulas, entities=entities, parent=None, substitution=merged_substitution)
+        # Set parent if one exists
         if parent:
             merged_tableau = parent.get_unique_tableau(merged_tableau)
             merged_tableau.parent = parent
