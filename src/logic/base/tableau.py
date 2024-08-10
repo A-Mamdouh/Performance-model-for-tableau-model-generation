@@ -2,7 +2,7 @@
 
 # pylint: disable=invalid-name
 from dataclasses import dataclass, field
-from typing import Iterable, Optional, Tuple
+from typing import Callable, Iterable, Optional, Set, Tuple
 import itertools
 
 import src.logic.base.syntax as S
@@ -22,6 +22,9 @@ class Tableau:
     parent: Optional["Tableau"] = None
     #: Current node substitution. This is important with non unique names
     substitution: Optional[S.Substitution] = None
+    #: Set of branch formulas. Contains formulas that were dispatched by calculus.
+    # Is only used by calculus
+    dispatched_formulas: Set[S.Formula] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         if self.substitution is None:
@@ -47,18 +50,6 @@ class Tableau:
         return itertools.chain(self.entities, self.parent.branch_entities)
 
     @property
-    def words(self) -> Iterable[str]:
-        """A list of words used in the current node"""
-        return S.get_words(self.literals)
-
-    @property
-    def branch_words(self) -> Iterable[str]:
-        """A list of words used in the whole branch starting with the current node"""
-        if self.parent is None:
-            return self.words
-        return itertools.chain(self.words, self.parent.branch_words)
-
-    @property
     def literals(self) -> Iterable[S.Literal]:
         """All literals in the current node"""
         return list(filter(S.is_literal, self.formulas))
@@ -73,7 +64,7 @@ class Tableau:
     @classmethod
     def merge(
         cls, *tableaus: "Tableau", parent: Optional["Tableau"] = None
-    ) -> "Tableau" | None:
+    ) -> "Tableau":
         """Merge given tableaus into one tableau containing all unique formulas and entities"""
         if len(tableaus) == 0:
             return Tableau(parent=parent)
@@ -86,14 +77,22 @@ class Tableau:
             itertools.chain(*map(lambda tableau: tableau.entities, tableaus))
         )
         # Merge substitutions
-        merged_substitution = S.Substitution.merge(*map(lambda tableau: tableau.substitution, tableaus))
-        # If merging substitutions fails, fail the tableau 
-        # FIXME: Add a false to the formulas or an incorrect equality so the rest of the code works as expected??
-        #               Or edit all calls of Tableau.merge
+        merged_substitution = S.Substitution.merge(
+            *map(lambda tableau: tableau.substitution, tableaus)
+        )
         if merged_substitution is None:
-            return None
+            formulas.add(S.False_)
+            merged_substitution = S.Substitution()
+        # Create a union of all dispatched formulas
+        dispatched_formulas = set.union(*map(lambda t: t.dispatched_formulas, tableaus))
         # Put together everything into new tableau
-        merged_tableau = Tableau(formulas=formulas, entities=entities, parent=None, substitution=merged_substitution)
+        merged_tableau = Tableau(
+            formulas=formulas,
+            entities=entities,
+            parent=None,
+            substitution=merged_substitution,
+            dispatched_formulas=dispatched_formulas,
+        )
         # Set parent if one exists
         if parent:
             merged_tableau = parent.get_unique_tableau(merged_tableau)
@@ -102,7 +101,7 @@ class Tableau:
 
     def copy(self) -> "Tableau":
         """Return a shallow copy of this tableau node"""
-        return self.merge(self, parent=self.parent)
+        return Tableau.merge(self, parent=self.parent)
 
     def __eq__(self, other: "Tableau") -> bool:
         if not isinstance(other, Tableau):
@@ -125,4 +124,12 @@ class Tableau:
         entities = set(leaf.entities)
         formulas.difference_update(self.branch_formulas)
         entities.difference_update(self.branch_entities)
-        return Tableau(list(formulas), list(entities), parent=leaf.parent)
+        return Tableau(
+            list(formulas),
+            list(entities),
+            parent=leaf.parent,
+            dispatched_formulas=leaf.dispatched_formulas,
+        )
+
+
+Axiom = Callable[[Tableau], Optional[Tableau]]

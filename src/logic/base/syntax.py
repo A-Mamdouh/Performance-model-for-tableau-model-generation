@@ -49,13 +49,12 @@ class Constant(Term):
         super().__init__(sort)
         if name is not None:
             assert not name.startswith("_")
+            self.name = name
         # If no name is provided a new constant is instantiated with an id
         # (for automatic constant generation)
-        if name is None:
+        else:
             self.name = f"_C{Constant._id}"
             Constant._id += 1
-        else:
-            self.name = name
 
     def _get_str(self) -> str:
         return f"{self.sort.name}({self.name})"
@@ -69,11 +68,13 @@ class EConstant(Term):
     def __init__(self, sort: Sort, name: Optional[str] = None) -> None:
         super().__init__(sort)
         if name is not None:
-            assert not name.startwith("_")
-            self.name = f"_C({EConstant._id})"
-            EConstant._id += 1
-        else:
+            assert not name.startswith("_")
             self.name = name
+        # If no name is provided a new constant is instantiated with an id
+        # (for automatic constant generation)
+        else:
+            self.name = f"_C{EConstant._id}"
+            EConstant._id += 1
 
     def _get_str(self) -> str:
         return f"{self.sort.name}({self.name})"
@@ -88,14 +89,12 @@ class Variable(Term):
         super().__init__(sort)
         if name is not None:
             assert not name.startswith("_")
-        self.sort = sort
+            self.name = name
         # If no name is provided a new variable is instantiated with an id
         # (for automatic constant generation)
-        if name is None:
+        else:
             self.name = f"_V{Variable._id}"
             Variable._id += 1
-        else:
-            self.name = name
 
     def _get_str(self) -> str:
         return self.name
@@ -490,11 +489,16 @@ class ExistsF(Not):
         return f"E_{self.formula.variable}:{self.formula.unfocused}.{self.formula.focused.formula}"
 
 
+def is_atom(f: Formula) -> bool:
+    """Return true if f is an atom. i.e. a predicate applied to terms"""
+    return isinstance(f, AppliedPredicate)
+
+
 def is_literal(f: Formula) -> bool:
     """Return true if f is an atom or the negation of one .i.e. a literal"""
-    return isinstance(f, AppliedPredicate) or (
-        isinstance(f, Not) and isinstance(f.formula, AppliedPredicate)
-    )
+    if isinstance(f, Not):
+        return is_atom(f.formula)
+    return is_atom(f)
 
 
 class Eq(AppliedPredicate):
@@ -522,13 +526,7 @@ class Substitution:
 
     def apply(self, term: Term) -> Term:
         """Apply substitution to a term"""
-        if isinstance(term, Variable):
-            return self.inner_dict.get(term) or term
-        if isinstance(term, Constant):
-            return self.inner_dict.get(term) or term
-        raise NotImplementedError(
-            "Applied Function Symbol terms are not implemented in the current fragment"
-        )
+        return self.inner_dict.get(term) or term
 
     def _update(self, other: "Substitution") -> None:
         """update substitution based on anoter substitution"""
@@ -544,12 +542,20 @@ class Substitution:
             sub = list(substitutions)[0]
             return sub.copy()
         first, *rest = substitutions
-        merged_rest = Substitution.merge(rest)
+        merged_rest = cls.merge(*rest)
+        if merged_rest is None:
+            return None
         output = first.copy()
-        for from_, to_ in merged_rest.inner_dict.values():
-            
-
-        # TODO: Implement this
+        for from_, to_ in merged_rest.inner_dict.items():
+            if from_ in output.inner_dict:
+                try:
+                    new_sub = cls._unify(output.inner_dict[from_], to_)
+                    output._update(new_sub)
+                except AssertionError:
+                    return None
+            else:
+                output.inner_dict[from_] = to_
+        return output
 
     @classmethod
     def most_general_unifier(cls, equalities: List[Eq]) -> Optional["Substitution"]:
