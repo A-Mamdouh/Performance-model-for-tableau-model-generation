@@ -234,13 +234,10 @@ def try_or_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     then return an iterable of the product of branches
     """
     # Get all disjunction formulas using the desugared form
-    undispatched_formulas = set.difference(
-        set(tableau.formulas), tableau.dispatched_formulas
-    )
     disjunctions: List[S.Not] = list(
         filter(
             lambda f: isinstance(f, S.Not) and isinstance(f.formula, S.And),
-            undispatched_formulas,
+            tableau.branch_undispatched_formulas,
         )
     )
     disjuncts: Iterable[Tuple[S.Formula, S.Formula]] = map(
@@ -272,7 +269,7 @@ def try_or_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     if branches:
         return map(
             lambda branch: T.Tableau(
-                branch, parent=tableau, dispatched_formulas=set(disjunctions)
+                branch, parent=tableau, dispatched_formulas=disjunctions
             ),
             branches,
         )
@@ -285,28 +282,27 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     then return an iterable of the product of branches
     """
     # Get all exists formulas using the desugared form
-    undispatched_formulas = set.difference(
-        set(tableau.formulas), tableau.dispatched_formulas
-    )
 
     def is_f_exists(f: S.Formula) -> bool:
         return isinstance(f, S.Not) and isinstance(f.formula, S.Forall)
 
-    quantified_formulas: Iterable[S.Not] = filter(is_f_exists, undispatched_formulas)
+    quantified_formulas: Iterable[S.Not] = list(
+        filter(is_f_exists, tableau.branch_undispatched_formulas)
+    )
     # For every quantified formula, collect all of its branches in a list
     all_sub_branches: List[Set[T.Tableau]] = []
     for quantified_formula in quantified_formulas:
         inner_formula: S.Forall = quantified_formula.formula
         # Filter out applicable entities
         # pylint: disable=W0640:cell-var-from-loop
-        applicable_entities: Iterable[S.Term] = filter(
-            lambda e: e.sort == inner_formula.sort, tableau.branch_entities
+        applicable_entities: Iterable[S.Term] = list(
+            filter(lambda e: e.sort == inner_formula.sort, tableau.branch_entities)
         )
         sub_branches: Set[T.Tableau] = set(
             map(
                 lambda e: T.Tableau(
                     [remove_double_negations(S.Not(inner_formula.partial_formula(e)))],
-                    dispatched_formulas=set([quantified_formula]),
+                    dispatched_formulas=[quantified_formula],
                 ),
                 applicable_entities,
             )
@@ -319,7 +315,7 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
             T.Tableau(
                 [witness_formula],
                 entities=[witness],
-                dispatched_formulas=set([quantified_formula]),
+                dispatched_formulas=[quantified_formula],
             )
         )
         # Only add nonempty subbranches. Otherwise cartesian product fails
@@ -336,6 +332,19 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
             itertools.product(*all_sub_branches),
         )
     )
+    # if quantified_formulas:
+    #     formulas_ = list(map(lambda t: str(list(t.formulas)[0]), output_branches))
+    #     qs_ = [str(x) for x in quantified_formulas]
+    #     disp_ = [str(x) for x in tableau.branch_dispatched_formulas]
+    #     undip = [str(x) for x in tableau.branch_undispatched_formulas]
+    #     for q_ in quantified_formulas:
+    #         for d_ in tableau.branch_dispatched_formulas:
+    #             q__ = str(q_)
+    #             d__ = str(d_)
+    #             same = q_ == d_
+    #             in_there = q_ in tableau.branch_dispatched_formulas
+    #             wakkaaa_ = None
+    #     wakka = None
     # Map branches to tableaus
     if output_branches:
         return output_branches

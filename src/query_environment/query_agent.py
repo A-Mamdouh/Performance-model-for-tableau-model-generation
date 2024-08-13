@@ -110,13 +110,17 @@ def main():
         # alex_pet_fido,
         # fido_bit_him,
         he_bit_him,
-        ]
+    ]
     entities = [Constants.alex, Constants.fido, Constants.bite]
     axioms = []
-    for model in generate_models(Tableau(formulas, entities), axioms):
-        print("Model:")
-        for formula in model.branch_literals:
-            print("  > ", formula)
+    for model_number, model in enumerate(
+        generate_models(Tableau(formulas, entities), axioms)
+    ):
+        print(f"Model {model_number+1}:")
+        for formula in sorted(
+            model.branch_literals, key=lambda l: (str(l.args[0]), str(l))
+        ):
+            print("  ", formula)
 
 
 if __name__ == "__main__":

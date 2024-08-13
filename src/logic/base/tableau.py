@@ -2,7 +2,7 @@
 
 # pylint: disable=invalid-name
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Optional, Set, Tuple
+from typing import Callable, Iterable, Optional, Tuple
 import itertools
 
 import src.logic.base.syntax as S
@@ -24,7 +24,7 @@ class Tableau:
     substitution: Optional[S.Substitution] = None
     #: Set of branch formulas. Contains formulas that were dispatched by calculus.
     # Is only used by calculus
-    dispatched_formulas: Set[S.Formula] = field(default_factory=set)
+    dispatched_formulas: Iterable[S.Formula] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.substitution is None:
@@ -34,6 +34,37 @@ class Tableau:
             else:
                 # Create a new empty substitution
                 self.substitution = S.Substitution()
+        # Make sure only unique dispatched formulas are included
+        self.dispatched_formulas = list(self.dispatched_formulas)
+        unique_dispatched_formulas = []
+        for i, x in enumerate(self.dispatched_formulas):
+            if x in self.dispatched_formulas[i + 1 :]:
+                continue
+            if self.parent and x in self.parent.branch_dispatched_formulas:
+                continue
+            unique_dispatched_formulas.append(x)
+        self.dispatched_formulas = unique_dispatched_formulas
+
+    @property
+    def branch_dispatched_formulas(self) -> Iterable[S.Formula]:
+        """Return the set of dispatched formulas of the entire branch"""
+        if self.parent is None:
+            return self.dispatched_formulas
+        return itertools.chain(
+            self.dispatched_formulas, self.parent.branch_dispatched_formulas
+        )
+
+    @property
+    def undispatched_formulas(self) -> Iterable[S.Formula]:
+        """return a set of node formulas that are not dispatched from this branch"""
+        return [f for f in self.formulas if f not in self.branch_dispatched_formulas]
+
+    @property
+    def branch_undispatched_formulas(self) -> Iterable[S.Formula]:
+        """return a set of branch formulas that are not dispatched from this branch"""
+        return [
+            f for f in self.branch_formulas if f not in self.branch_dispatched_formulas
+        ]
 
     @property
     def branch_formulas(self) -> Iterable[S.Formula]:
@@ -84,7 +115,7 @@ class Tableau:
             formulas.add(S.False_)
             merged_substitution = S.Substitution()
         # Create a union of all dispatched formulas
-        dispatched_formulas = set.union(*map(lambda t: t.dispatched_formulas, tableaus))
+        dispatched_formulas = [f for t in tableaus for f in t.dispatched_formulas]
         # Put together everything into new tableau
         merged_tableau = Tableau(
             formulas=formulas,
