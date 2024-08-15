@@ -286,8 +286,8 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     def is_f_exists(f: S.Formula) -> bool:
         return isinstance(f, S.Not) and isinstance(f.formula, S.Forall)
 
-    quantified_formulas: Iterable[S.Not] = list(
-        filter(is_f_exists, tableau.branch_undispatched_formulas)
+    quantified_formulas: Iterable[S.Not] = filter(
+        is_f_exists, tableau.branch_undispatched_formulas
     )
     # For every quantified formula, collect all of its branches in a list
     all_sub_branches: List[Set[T.Tableau]] = []
@@ -295,8 +295,8 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         inner_formula: S.Forall = quantified_formula.formula
         # Filter out applicable entities
         # pylint: disable=W0640:cell-var-from-loop
-        applicable_entities: Iterable[S.Term] = list(
-            filter(lambda e: e.sort == inner_formula.sort, tableau.branch_entities)
+        applicable_entities: Iterable[S.Term] = filter(
+            lambda e: e.sort == inner_formula.sort, tableau.branch_entities
         )
         sub_branches: Set[T.Tableau] = set(
             map(
@@ -332,19 +332,6 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
             itertools.product(*all_sub_branches),
         )
     )
-    # if quantified_formulas:
-    #     formulas_ = list(map(lambda t: str(list(t.formulas)[0]), output_branches))
-    #     qs_ = [str(x) for x in quantified_formulas]
-    #     disp_ = [str(x) for x in tableau.branch_dispatched_formulas]
-    #     undip = [str(x) for x in tableau.branch_undispatched_formulas]
-    #     for q_ in quantified_formulas:
-    #         for d_ in tableau.branch_dispatched_formulas:
-    #             q__ = str(q_)
-    #             d__ = str(d_)
-    #             same = q_ == d_
-    #             in_there = q_ in tableau.branch_dispatched_formulas
-    #             wakkaaa_ = None
-    #     wakka = None
     # Map branches to tableaus
     if output_branches:
         return output_branches

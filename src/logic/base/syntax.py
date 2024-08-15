@@ -186,7 +186,7 @@ class AppliedPredicate(Formula):
     def _get_str(self) -> str:
         if self.predicate.arity == 0:
             return self.predicate.name
-        args_string = ",".join(str(x) for x in self.args)
+        args_string = ", ".join(str(x) for x in self.args)
         return f"{self.predicate.name}({args_string})"
 
     def __eq__(self, o2: object) -> bool:
