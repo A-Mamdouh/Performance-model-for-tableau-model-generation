@@ -23,6 +23,10 @@ class Term(ABC):
     def __init__(self, sort: Sort):
         self.sort = sort
 
+    @property
+    def _str_(self) -> str:
+        return str(self)
+
     @abstractmethod
     def _get_str(self) -> str:
         pass
@@ -105,6 +109,10 @@ class Formula(ABC):
 
     def __init__(self):
         self.annotation: Optional[str] = None
+
+    @property
+    def _str_(self) -> str:
+        return str(self)
 
     @abstractmethod
     def _get_str(self) -> str:

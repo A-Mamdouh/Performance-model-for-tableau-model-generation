@@ -50,8 +50,10 @@ class Tableau:
         """Return the set of dispatched formulas of the entire branch"""
         if self.parent is None:
             return self.dispatched_formulas
-        return itertools.chain(
-            self.dispatched_formulas, self.parent.branch_dispatched_formulas
+        return list(
+            itertools.chain(
+                self.dispatched_formulas, self.parent.branch_dispatched_formulas
+            )
         )
 
     @property
@@ -71,14 +73,14 @@ class Tableau:
         """All formulas from this node up to the root. Starting with this node"""
         if self.parent is None:
             return self.formulas
-        return itertools.chain(self.formulas, self.parent.branch_formulas)
+        return list(itertools.chain(self.formulas, self.parent.branch_formulas))
 
     @property
     def branch_entities(self) -> Iterable[S.Term]:
         """All entities (terms) from this node up to the root. Starting with this node"""
         if self.parent is None:
             return self.entities
-        return itertools.chain(self.entities, self.parent.branch_entities)
+        return list(itertools.chain(self.entities, self.parent.branch_entities))
 
     @property
     def literals(self) -> Iterable[S.Literal]:
@@ -90,7 +92,7 @@ class Tableau:
         """All literals from this node up to the root. Starting with this node"""
         if self.parent is None:
             return self.literals
-        return itertools.chain(self.literals, self.parent.branch_literals)
+        return list(itertools.chain(self.literals, self.parent.branch_literals))
 
     @classmethod
     def merge(
