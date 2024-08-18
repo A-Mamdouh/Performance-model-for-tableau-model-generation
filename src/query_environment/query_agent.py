@@ -4,9 +4,16 @@ from dataclasses import dataclass
 import itertools
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
-from sympy import AppliedPredicate
 from src.logic.base.calculus import generate_models
-from src.logic.base.syntax import Constant, Eq, Exists, Predicate, Sort, Term
+from src.logic.base.syntax import (
+    AppliedPredicate,
+    Constant,
+    Eq,
+    Exists,
+    Predicate,
+    Sort,
+    Term,
+)
 from src.logic.base.tableau import Axiom, Tableau
 
 
@@ -109,19 +116,28 @@ class Axioms:
         return Axioms._only_one_kind_per_event(Predicates.object)(tableau)
 
     @staticmethod
+    def axiom_only_one_subject(tableau: Tableau) -> Tableau | None:
+        """Only one object per event"""
+        return Axioms._only_one_kind_per_event(Predicates.subject)(tableau)
+
+    @staticmethod
+    def axiom_only_one_action(tableau: Tableau) -> Tableau | None:
+        """Only one object per event"""
+        return Axioms._only_one_kind_per_event(Predicates.action)(tableau)
+
+    @staticmethod
     def _only_one_kind_per_event(pred: Predicate) -> Axiom:
         def axiom(tableau: Tableau) -> Tableau | None:
             pred_by_event: Dict[Term, List[Tuple]] = {}
             for literal in tableau.branch_literals:
-                if (
-                    not isinstance(literal, AppliedPredicate)
-                    or literal.predicate is not pred
-                ):
+                if not isinstance(literal, AppliedPredicate):
+                    continue
+                if literal.predicate is not pred:
                     continue
                 event, *terms = literal.args
                 equals = pred_by_event.get(event)
                 if equals is None:
-                    equals = pred_by_event[event] = []
+                    pred_by_event[event] = equals = []
                 equals.append(terms)
             # Create equalities between terms
             f_equalities = set()
@@ -131,8 +147,9 @@ class Axioms:
                         if t1 is t2:
                             continue
                         f_equalities.add(Eq(t1, t2))
-            if f_equalities:
-                return Tableau(f_equalities, parent=tableau)
+            output = tableau.get_unique_tableau(Tableau(f_equalities, parent=tableau))
+            if output.formulas:
+                return output
             return None
 
         return axiom
@@ -140,9 +157,10 @@ class Axioms:
     @classmethod
     def get_axioms(cls) -> List[Axiom]:
         """Return list of axiom callables"""
-        return [
+        output = [
             value for key, value in cls.__dict__.items() if key.startswith("axiom_")
         ]
+        return output
 
 
 @dataclass
@@ -282,7 +300,13 @@ def test_agent():
 
     query = Tableau([fido_bit_him])
 
-    for t in [first_sentence, second_sentence, query]:
+    story = [
+        first_sentence,
+        second_sentence,
+        # query,
+    ]
+
+    for t in story:
         out = agent.add_information(t)
         if not out:
             print("No valid model")
