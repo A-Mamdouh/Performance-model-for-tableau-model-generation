@@ -13,7 +13,9 @@ import src.logic.base.tableau as T
 def generate_models(
     tableau: T.Tableau, axioms: Iterable[T.Axiom]
 ) -> Generator[T.Tableau, None, None]:
-    """Generate possible models of the"""
+    """Expand the tableau using the axioms and the tableau calculus
+    This function assumes taht the starting tableau can itself be a model.
+    """
     # First, apply non-branching rules to the tableau until none can be applied
     maximal_non_branching = try_non_branching_rules(tableau, axioms)
     # Then, figure out the tableau to be used for branching
@@ -32,11 +34,7 @@ def generate_models(
     # Loop over branches and expand the branches
     for branch in filter(is_branch_consistent, branches):
         # Recursively generate models
-        outputs = list(generate_models(branch, axioms))
-        if outputs:
-            yield from outputs
-        else:
-            yield branch
+        yield from generate_models(branch, axioms)
     return None
 
 
@@ -336,3 +334,15 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     if output_branches:
         return output_branches
     return None
+
+
+def test_calculus():
+    p = S.Predicate("p", 0)()
+    s = S.Sort("s")
+    f = S.Exists(lambda e: p, sort=s)
+    for model in generate_models(T.Tableau([f]), []):
+        print("Model:", *model.branch_literals, sep="\n  ")
+
+
+if __name__ == '__main__':
+    test_calculus()
