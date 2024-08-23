@@ -49,11 +49,11 @@ class Tableau:
         # Create salience for new entities
         for entity in self.entities:
             if self.saliences.get(entity) is None:
-                self.salience[entity] = 1.0
+                self.saliences[entity] = 1.0
         if self.parent:
             for entity, salience in self.parent.saliences.items():
-                if self.salience.get(entity) is None:
-                    self.salience[entity] = salience
+                if self.saliences.get(entity) is None:
+                    self.saliences[entity] = salience
 
 
     @property
