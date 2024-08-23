@@ -2,7 +2,7 @@
 
 # pylint: disable=invalid-name
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 import itertools
 
 import src.logic.base.syntax as S
@@ -25,6 +25,8 @@ class Tableau:
     #: Set of branch formulas. Contains formulas that were dispatched by calculus.
     # Is only used by calculus
     dispatched_formulas: Iterable[S.Formula] = field(default_factory=list)
+    # This record contains the salience of all entities in this node. The parent should not be included.
+    saliences: Dict[S.Term, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.substitution is None:
@@ -44,6 +46,15 @@ class Tableau:
                 continue
             unique_dispatched_formulas.append(x)
         self.dispatched_formulas = unique_dispatched_formulas
+        # Create salience for new entities
+        for entity in self.entities:
+            if self.saliences.get(entity) is None:
+                self.salience[entity] = 1.0
+        if self.parent:
+            for entity, salience in self.parent.saliences.items():
+                if self.salience.get(entity) is None:
+                    self.salience[entity] = salience
+
 
     @property
     def branch_dispatched_formulas(self) -> Iterable[S.Formula]:
@@ -118,6 +129,15 @@ class Tableau:
             merged_substitution = S.Substitution()
         # Create a union of all dispatched formulas
         dispatched_formulas = [f for t in tableaus for f in t.dispatched_formulas]
+        # Merge saliences by taking the maximum salience
+        merged_saliences: Dict[str, float] = {}
+        for tableau in tableaus:
+            for key, value in tableau.saliences.items():
+                value_ = merged_saliences.get(key)
+                if value_ is None:
+                    value_ = value
+                value_ = max(value_, value)
+                merged_saliences[key] = value_
         # Put together everything into new tableau
         merged_tableau = Tableau(
             formulas=formulas,
@@ -125,6 +145,7 @@ class Tableau:
             parent=None,
             substitution=merged_substitution,
             dispatched_formulas=dispatched_formulas,
+            saliences=merged_saliences
         )
         # Set parent if one exists
         if parent:
@@ -136,7 +157,7 @@ class Tableau:
         """Return a shallow copy of this tableau node"""
         return Tableau.merge(self, parent=self.parent)
 
-    def __eq__(self, other: "Tableau") -> bool:
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Tableau):
             return False
         return hash(self) == hash(other)
@@ -146,8 +167,9 @@ class Tableau:
         ordered_formulas: Tuple[S.Formula] = tuple(
             sorted(self.formulas, key=S.Formula.__str__)
         )
-        ordered_entities: Tuple[S.Term] = tuple(sorted(map(str, self.entities)))
-        return hash((ordered_formulas, ordered_entities))
+        ordered_entities: Tuple[str] = tuple(sorted(map(str, self.entities)))
+        ordered_sentience: Tuple[str] = tuple(sorted(map(str, self.saliences.items())))
+        return hash((ordered_formulas, ordered_entities, ordered_sentience))
 
     def get_unique_tableau(self, leaf: "Tableau") -> "Tableau":
         """Given a leaf without a parent, create a leaf that only contains
