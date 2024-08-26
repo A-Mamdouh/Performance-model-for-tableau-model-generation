@@ -1,10 +1,11 @@
 # pylint: disable=invalid-name
 """Implementation of tableau calculus rules"""
 
+from collections import OrderedDict
 import functools
 import itertools
 import operator
-from typing import Generator, Iterable, List, Optional, Set, Tuple
+from typing import Generator, Iterable, List, Optional, OrderedDict as OrderedDictT, Tuple
 
 import src.logic.base.syntax as S
 import src.logic.base.tableau as T
@@ -288,7 +289,7 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         is_f_exists, tableau.branch_undispatched_formulas
     )
     # For every quantified formula, collect all of its branches in a list
-    all_sub_branches: List[Set[T.Tableau]] = []
+    all_sub_branches: List[List[T.Tableau]] = []
     for quantified_formula in quantified_formulas:
         inner_formula: S.Forall = quantified_formula.formula
         # Filter out applicable entities
@@ -296,7 +297,7 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         applicable_entities: Iterable[S.Term] = filter(
             lambda e: e.sort == inner_formula.sort, tableau.branch_entities
         )
-        sub_branches: Set[T.Tableau] = set(
+        sub_branches: OrderedDictT[T.Tableau] = OrderedDict.fromkeys(
             map(
                 lambda e: T.Tableau(
                     [remove_double_negations(S.Not(inner_formula.partial_formula(e)))],
@@ -309,22 +310,22 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         witness_formula = remove_double_negations(
             S.Not(inner_formula.partial_formula(witness))
         )
-        sub_branches.add(
-            T.Tableau(
+        new_tableau = T.Tableau(
                 [witness_formula],
                 entities=[witness],
                 dispatched_formulas=[quantified_formula],
             )
-        )
+        sub_branches[new_tableau] = None
+        
         # Only add nonempty subbranches. Otherwise cartesian product fails
         if sub_branches:
             # Add current formula's branches to all branches
-            all_sub_branches.append(sub_branches)
+            all_sub_branches.append(list(sub_branches.keys()))
     # If not sub branches were found, return None
     if not all_sub_branches:
         return None
     # The produced branches should be the cartesian product of the current inner branches
-    output_branches: Set[T.Tableau] = set(
+    output_branches: OrderedDictT[T.Tableau] = OrderedDict.fromkeys(
         map(
             lambda ts: T.Tableau.merge(*ts, parent=tableau),
             itertools.product(*all_sub_branches),
@@ -332,7 +333,7 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     )
     # Map branches to tableaus
     if output_branches:
-        return output_branches
+        return output_branches.keys()
     return None
 
 
