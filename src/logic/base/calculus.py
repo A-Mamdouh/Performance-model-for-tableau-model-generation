@@ -4,6 +4,7 @@
 from collections import OrderedDict
 import functools
 import itertools
+from logging import getHandlerByName
 import operator
 from typing import Generator, Iterable, List, Optional, OrderedDict as OrderedDictT, Tuple
 
@@ -294,28 +295,36 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         inner_formula: S.Forall = quantified_formula.formula
         # Filter out applicable entities
         # pylint: disable=W0640:cell-var-from-loop
-        applicable_entities: Iterable[S.Term] = filter(
+        applicable_entities: List[S.Term] = list(filter(
             lambda e: e.sort == inner_formula.sort, tableau.branch_entities
-        )
-        sub_branches: OrderedDictT[T.Tableau] = OrderedDict.fromkeys(
-            map(
+        ))
+        # Sort entities by salience. Starting with the highest salience first
+        sub_branches_list = map(
                 lambda e: T.Tableau(
                     [remove_double_negations(S.Not(inner_formula.partial_formula(e)))],
                     dispatched_formulas=[quantified_formula],
                 ),
                 applicable_entities,
             )
-        )
         witness: S.EConstant = S.EConstant(quantified_formula.sort)
         witness_formula = remove_double_negations(
             S.Not(inner_formula.partial_formula(witness))
         )
-        new_tableau = T.Tableau(
+        witness_tableau = T.Tableau(
                 [witness_formula],
                 entities=[witness],
                 dispatched_formulas=[quantified_formula],
+                saliences={witness: tableau.witness_default_salience},
+                parent=tableau,
             )
-        sub_branches[new_tableau] = None
+        sub_branches_list = witness_tableau, *sub_branches_list
+        # Now sort the sub branches based on their salience
+        entities_sub_branches_list = zip((witness, *applicable_entities), sub_branches_list)
+        sorted_sub_branches = sorted(entities_sub_branches_list, reverse=True, key=lambda obj: witness_tableau.saliences.get(obj[0]))
+        # Remove duplicates
+        sorted_sub_branches = map(lambda tup: tup[1], sorted_sub_branches)
+        # Remove duplicates
+        sub_branches = OrderedDict.fromkeys(sorted_sub_branches)
         
         # Only add nonempty subbranches. Otherwise cartesian product fails
         if sub_branches:

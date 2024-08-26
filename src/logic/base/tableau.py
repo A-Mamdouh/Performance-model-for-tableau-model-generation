@@ -27,6 +27,11 @@ class Tableau:
     dispatched_formulas: Iterable[S.Formula] = field(default_factory=list)
     # This record contains the salience of all entities in this node. The parent should not be included.
     saliences: Dict[S.Term, float] = field(default_factory=dict)
+    # This value is used to decay or increase the salience of entities
+    salience_decay: float = 0.6
+    # This is the default salience value for created witnesses. 
+    # It can be viewed as a minimum salience threshold for existing entities to be used instead of the new witnesses
+    witness_default_salience: float = 0.5
 
     def __post_init__(self) -> None:
         if self.substitution is None:
@@ -142,7 +147,7 @@ class Tableau:
         merged_tableau = Tableau(
             formulas=formulas,
             entities=entities,
-            parent=None,
+            parent=parent,
             substitution=merged_substitution,
             dispatched_formulas=dispatched_formulas,
             saliences=merged_saliences
@@ -150,7 +155,6 @@ class Tableau:
         # Set parent if one exists
         if parent:
             merged_tableau = parent.get_unique_tableau(merged_tableau)
-            merged_tableau.parent = parent
         return merged_tableau
 
     def copy(self) -> "Tableau":

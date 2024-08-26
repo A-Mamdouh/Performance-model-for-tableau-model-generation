@@ -186,8 +186,11 @@ class Agent:
 
     def add_information(self, tableau: Tableau) -> Optional[Tableau]:
         """Add world knowledge to the agent"""
+        parent = None
+        if self.knowledge_base:
+            parent = self.knowledge_base[-1]
         tableau = tableau.merge(
-            tableau, parent=self.knowledge_base and self.knowledge_base[-1]
+            tableau, parent=parent
         )
         self.knowledge_base.append(tableau)
         while self._models:
