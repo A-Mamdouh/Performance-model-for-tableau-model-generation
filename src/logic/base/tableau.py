@@ -28,10 +28,12 @@ class Tableau:
     # This record contains the salience of all entities in this node. The parent should not be included.
     saliences: Dict[S.Term, float] = field(default_factory=dict)
     # This value is used to decay or increase the salience of entities
-    salience_decay: float = 0.6
+    salience_decay: float = 0.7
     # This is the default salience value for created witnesses. 
     # It can be viewed as a minimum salience threshold for existing entities to be used instead of the new witnesses
-    witness_default_salience: float = 0.5
+    witness_default_salience: float = 0.4
+    # The value an entity should have when it's currently in context.
+    recall_salience: float = 1.0
 
     def __post_init__(self) -> None:
         if self.substitution is None:
@@ -54,7 +56,7 @@ class Tableau:
         # Create salience for new entities
         for entity in self.entities:
             if self.saliences.get(entity) is None:
-                self.saliences[entity] = 1.0
+                self.saliences[entity] = self.recall_salience
         if self.parent:
             for entity, salience in self.parent.saliences.items():
                 if self.saliences.get(entity) is None:
@@ -137,12 +139,12 @@ class Tableau:
         # Merge saliences by taking the maximum salience
         merged_saliences: Dict[str, float] = {}
         for tableau in tableaus:
-            for key, value in tableau.saliences.items():
-                value_ = merged_saliences.get(key)
-                if value_ is None:
-                    value_ = value
-                value_ = max(value_, value)
-                merged_saliences[key] = value_
+            for entity_, salience in tableau.saliences.items():
+                existing_salience = merged_saliences.get(entity_)
+                if existing_salience is None:
+                    existing_salience = salience
+                salience = max(existing_salience, salience)
+                merged_saliences[entity_] = salience
         # Put together everything into new tableau
         merged_tableau = Tableau(
             formulas=formulas,
@@ -188,7 +190,12 @@ class Tableau:
             list(entities),
             parent=leaf.parent,
             dispatched_formulas=leaf.dispatched_formulas,
+            saliences=leaf.saliences,
         )
+
+    @property
+    def salience_readable(self) -> Dict[str, float]:
+        return {str(key):value for key, value in self.saliences.items()}
 
 
 Axiom = Callable[[Tableau], Optional[Tableau]]

@@ -186,22 +186,33 @@ class Agent:
 
     def add_information(self, tableau: Tableau) -> Optional[Tableau]:
         """Add world knowledge to the agent"""
-        parent = None
-        if self.knowledge_base:
-            parent = self.knowledge_base[-1]
-        tableau = tableau.merge(
-            tableau, parent=parent
-        )
+        # Attach the last tableau as the parent and set input as the current last tableau
+        # parent = None
+        # if self.knowledge_base:
+        #     parent = self.knowledge_base[-1]
+        # tableau = Tableau.merge(
+        #     tableau, parent=parent
+        # )
         self.knowledge_base.append(tableau)
+        # Run DFS to find the next model
         while self._models:
+            # If the current node is a model for the current knowledge base, return its tableau
             if self._models[-1].depth == len(self.knowledge_base):
                 return self._models[-1].tableau
+            # Pop the last node on the stack as the current model
             current_model = self._models.pop()
+            # Get the chronologically next piece of knowledge
             next_tableau = self.knowledge_base[current_model.depth]
+            # Combine current model and the next piece of knowledge
             combined_tableau = Tableau.merge(next_tableau, parent=current_model.tableau)
+            # Run calculus to general models
             for new_model_tableau in generate_models(
                 combined_tableau, Axioms.get_axioms()
             ):
+                # Apply salience decay to the new model
+                for entity, salience in list(new_model_tableau.saliences.items()):
+                    new_model_tableau.saliences[entity] = salience * new_model_tableau.salience_decay
+                # Create new DFS node and push onto the stack
                 new_model = AgentNode(
                     new_model_tableau, current_model.depth + 1, current_model
                 )
@@ -211,52 +222,6 @@ class Agent:
     def query(self, query_tableau: Tableau) -> Optional[Tableau]:
         """Query the agent for some information"""
         return self.add_information(query_tableau)
-
-
-def test_model_generation():
-    """Module entry point"""
-    alex_pet_fido = Exists(
-        lambda e: Predicates.subject(e, Constants.alex)
-        & Predicates.action(e, Constants.bite)
-        & Predicates.object(e, Constants.fido),
-        sort=Sorts.event,
-    )
-    fido_bit_him = Exists(
-        partial_formula=lambda e: Exists(
-            partial_formula=lambda o: Predicates.subject(e, Constants.fido)
-            & Predicates.action(e, Constants.bite)
-            & Predicates.object(e, o),
-            sort=Sorts.agent,
-        ),
-        sort=Sorts.event,
-    )
-    he_bit_him = Exists(
-        partial_formula=lambda e: Exists(
-            partial_formula=lambda s: Exists(
-                partial_formula=lambda o: Predicates.subject(e, s)
-                & Predicates.action(e, Constants.bite)
-                & Predicates.object(e, o),
-                sort=Sorts.agent,
-            ),
-            sort=Sorts.agent,
-        ),
-        sort=Sorts.event,
-    )
-    formulas = [
-        # alex_pet_fido,
-        # fido_bit_him,
-        he_bit_him,
-    ]
-    entities = [Constants.alex, Constants.fido, Constants.bite]
-    axioms = []
-    for model_number, model in enumerate(
-        generate_models(Tableau(formulas, entities), axioms)
-    ):
-        print(f"Model {model_number+1}:")
-        for formula in sorted(
-            model.branch_literals, key=lambda l: (str(l.args[0]), str(l))
-        ):
-            print("  ", formula)
 
 
 def test_agent():
@@ -283,6 +248,12 @@ def test_agent():
         ),
         sort=Sorts.event,
     )
+    bob_pet_fido = Exists(
+        lambda e: Predicates.subject(e, Constants.bob)
+        & Predicates.action(e, Constants.pet)
+        & Predicates.object(e, Constants.fido),
+        sort=Sorts.event,
+    )
     he_bit_him = Exists(
         partial_formula=lambda e: Exists(
             partial_formula=lambda s: Exists(
@@ -296,17 +267,47 @@ def test_agent():
         sort=Sorts.event,
     )
 
-    first_sentence = Tableau(
-        [alex_pet_fido], [Constants.alex, Constants.pet, Constants.fido]
+    alex_pet_fido_t = Tableau(
+        formulas=[alex_pet_fido],
+        entities=[Constants.alex, Constants.pet, Constants.fido],
+        saliences={
+            Constants.alex: Tableau.recall_salience,
+            Constants.pet: Tableau.recall_salience,
+            Constants.fido: Tableau.recall_salience,
+        }
     )
-    second_sentence = Tableau([fido_bit_alex], [Constants.bite])
+    bob_pet_fido_t = Tableau(
+        formulas=[bob_pet_fido],
+        entities=[Constants.bob],
+        saliences={
+            Constants.bob: Tableau.recall_salience,
+            Constants.pet: Tableau.recall_salience,
+            Constants.fido: Tableau.recall_salience,
+        }
+    )
+    fido_bit_alex_t = Tableau(
+        formulas=[fido_bit_alex],
+        entities=[Constants.bite],
+        saliences={
+            Constants.alex: Tableau.recall_salience,
+            Constants.bite: Tableau.recall_salience,
+            Constants.fido: Tableau.recall_salience,
+        } 
+    )
 
-    query = Tableau([fido_bit_him])
+    fido_bit_him_t = Tableau(
+        formulas=[fido_bit_him],
+        saliences={
+            Constants.bite: Tableau.recall_salience,
+            Constants.fido: Tableau.recall_salience,
+        } 
+    )
 
     story = [
-        first_sentence,
-        second_sentence,
-        # query,
+        alex_pet_fido_t,
+        bob_pet_fido_t,
+        fido_bit_alex_t,
+        fido_bit_him_t,
     ]
 
     for t in story:
@@ -319,6 +320,7 @@ def test_agent():
         ):
             print(" ", formula)
         print()
+    print("Done")
 
 
 if __name__ == "__main__":

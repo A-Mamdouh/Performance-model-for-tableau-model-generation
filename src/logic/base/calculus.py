@@ -4,7 +4,6 @@
 from collections import OrderedDict
 import functools
 import itertools
-from logging import getHandlerByName
 import operator
 from typing import Generator, Iterable, List, Optional, OrderedDict as OrderedDictT, Tuple
 
@@ -320,7 +319,10 @@ def try_exists_elim(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
         sub_branches_list = witness_tableau, *sub_branches_list
         # Now sort the sub branches based on their salience
         entities_sub_branches_list = zip((witness, *applicable_entities), sub_branches_list)
-        sorted_sub_branches = sorted(entities_sub_branches_list, reverse=True, key=lambda obj: witness_tableau.saliences.get(obj[0]))
+        sorted_sub_branches: List[Tuple[S.Term, T.Tableau]] = list(sorted(entities_sub_branches_list, reverse=True, key=lambda obj: witness_tableau.saliences.get(obj[0])))
+        # Update the saliences after sorting
+        for entity, tableau_ in sorted_sub_branches:
+            tableau_.saliences[entity] = tableau_.recall_salience
         # Remove duplicates
         sorted_sub_branches = map(lambda tup: tup[1], sorted_sub_branches)
         # Remove duplicates
