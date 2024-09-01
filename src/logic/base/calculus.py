@@ -115,7 +115,7 @@ def is_branch_consistent(tableau: T.Tableau) -> bool:
         if isinstance(formula, S.Not):
             if formula.formula in branch_formulas:
                 return False
-    # Check equality violations
+    # Check equality violations between unique constants
     for formula in tableau.formulas:
         if (
             isinstance(formula, S.Eq)
@@ -132,6 +132,7 @@ def is_branch_consistent(tableau: T.Tableau) -> bool:
             and formula.formula.left != formula.formula.right
         ):
             return False
+    # TODO: check for equality violations for non-unique constants
     return True
 
 
