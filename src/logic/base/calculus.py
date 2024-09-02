@@ -29,11 +29,15 @@ def generate_models(
     # If no branches are produces, resolve now
     if not branches:
         # Yield if maximal non-branching tableau is consistent
-        if maximal_non_branching and is_branch_consistent(maximal_non_branching):
-            yield maximal_non_branching
+        if maximal_non_branching:
+            consistent_branch = apply_consistency_rules(maximal_non_branching)
+            if consistent_branch:
+                yield maximal_non_branching
         return None
     # Loop over branches and expand the branches
-    for branch in filter(is_branch_consistent, branches):
+    consistent_branches = map(apply_consistency_rules, branches)
+    consistent_branches = filter(operator.truth, consistent_branches)
+    for branch in consistent_branches:
         # Recursively generate models
         yield from generate_models(branch, axioms)
     return None
@@ -98,10 +102,114 @@ def try_branching_rules(tableau: T.Tableau) -> Optional[Iterable[T.Tableau]]:
     return output
 
 
-def is_branch_consistent(tableau: T.Tableau) -> bool:
-    """Return True if the current tableau branch is a closed branch"""
-    # pylint: disable=too-many-branches
-    # pylint: disable=R0911:too-many-return-statements
+def apply_consistency_rules(tableau: T.Tableau) -> Optional[T.Tableau]:
+    """Apply branch closing rules if applicable
+    Returns a tableau (maybe) with new equalities and substitution or
+    None if the tableau is not consistent
+    """
+
+    """
+    pylint: disable=too-many-branches
+    pylint: disable=R0911:too-many-return-statements
+    """
+    # Check if simple contradictions exist
+    if not check_simple_contradictions(tableau):
+        return None
+    # Check equality violations between unique constants
+    if not check_unique_constants_equality(tableau):
+        return None
+    # Check equality violations with non-unique constants. (updates MGU too)
+    return check_non_unique_constants_equality(tableau)
+
+
+def check_non_unique_constants_equality(tableau: T.Tableau) -> Optional[T.Tableau]:
+    """Check equality issues when considering non-unique constants.
+    Returns a new tableau with equalities resolved or None if there's a contradiction"""
+    new_tableau = tableau.copy()
+
+    def is_nonunique(formula: S.Formula) -> bool:
+        return isinstance(formula, S.EConstant)
+
+    for formula in new_tableau.branch_formulas:
+        # First, handle case of equality
+        if isinstance(formula, S.Eq):
+            left, right = formula.left, formula.right
+            if is_nonunique(left) and is_nonunique(right):
+                if not eq_handle_two_nonunique(new_tableau, left, right):
+                    return None
+            elif is_nonunique(left) or is_nonunique(right):
+                if not eq_handle_unique_and_non_unique(new_tableau, left, right):
+                    return None
+        # Then, handle case of inequality
+        if isinstance(formula, S.Not) and isinstance(formula.formula, S.Eq):
+            left, right = formula.formula.left, formula.formula.right
+            if is_nonunique(left) or is_nonunique(right):
+                s_a = new_tableau.substitution(left)
+                s_b = new_tableau.substitution(right)
+
+                if (
+                    isinstance(s_a, S.Constant)
+                    and isinstance(s_b, S.Constant)
+                    and s_a is s_b
+                ):
+                    return None
+    return new_tableau
+
+
+def eq_handle_unique_and_non_unique(
+    tableau: T.Tableau, left: S.Term, right: S.Term
+) -> bool:
+    """Nonunique constant equality case 1"""
+    # Make sure left is the non-unique constant term
+    if isinstance(right, S.EConstant):
+        return eq_handle_unique_and_non_unique(tableau, left=right, right=left)
+    sigma_a: S.Term = tableau.substitution(left)
+    if isinstance(sigma_a, S.EConstant):
+        tableau.substitution.add_update(left, right)
+        return True
+    return sigma_a is right
+
+
+def eq_handle_two_nonunique(
+    tableau: T.Tableau, left: S.EConstant, right: S.EConstant
+) -> bool:
+    """Nonunique constant equality case 2"""
+    sigma_a = tableau.substitution(left)
+    sigma_b = tableau.substitution(right)
+    if sigma_a is left:
+        tableau.substitution.add_update(left, sigma_b)
+        return True
+    if isinstance(sigma_a, S.EConstant):
+        if isinstance(sigma_b, S.EConstant):
+            return eq_handle_two_nonunique(tableau, sigma_b, sigma_a)
+    return eq_handle_unique_and_non_unique(tableau, sigma_a, sigma_b)
+
+
+def check_unique_constants_equality(tableau: T.Tableau) -> bool:
+    """Check if equality between unique constants is not broken in the branch"""
+    for formula in tableau.branch_formulas:
+        # C1 = C2 |- F
+        if (
+            isinstance(formula, S.Eq)
+            and isinstance(formula.left, S.Constant)
+            and isinstance(formula.right, S.Constant)
+            and formula.left != formula.right
+        ):
+            return False
+        # C1 != C2 |- F
+        if (
+            isinstance(formula, S.Not)
+            and isinstance(formula.formula, S.Eq)
+            and isinstance(formula.formula.left, S.Constant)
+            and isinstance(formula.formula.right, S.Constant)
+            and formula.formula.left != formula.formula.right
+        ):
+            return False
+    return True
+
+
+def check_simple_contradictions(tableau: T.Tableau) -> bool:
+    """Check simple contradictions in the current branch like False or A & -A"""
     branch_formulas = list(tableau.branch_formulas)
     # Check if the branch contains false
     if S.False_ in branch_formulas:
@@ -115,24 +223,6 @@ def is_branch_consistent(tableau: T.Tableau) -> bool:
         if isinstance(formula, S.Not):
             if formula.formula in branch_formulas:
                 return False
-    # Check equality violations between unique constants
-    for formula in tableau.formulas:
-        if (
-            isinstance(formula, S.Eq)
-            and isinstance(formula.left, S.Constant)
-            and isinstance(formula.right, S.Constant)
-            and formula.left != formula.right
-        ):
-            return False
-        if (
-            isinstance(formula, S.Not)
-            and isinstance(formula.formula, S.Eq)
-            and isinstance(formula.formula.left, S.Constant)
-            and isinstance(formula.formula.right, S.Constant)
-            and formula.formula.left != formula.formula.right
-        ):
-            return False
-    # TODO: check for equality violations for non-unique constants
     return True
 
 
@@ -353,7 +443,18 @@ def test_calculus():
     p = S.Predicate("p", 0)()
     s = S.Sort("s")
     f = S.Exists(lambda e: p, sort=s)
-    for model in generate_models(T.Tableau([f]), []):
+    c1 = s.make_constant()
+    c2 = s.make_constant()
+    e1 = S.EConstant(sort=s)
+    e2 = S.EConstant(sort=s)
+    entities = [c1, c2, e1, e2]
+    formulas = [
+        f,
+        S.Eq(c1, e1),
+        S.Eq(c2, e2),
+        ~S.Eq(c2, e1),
+    ]
+    for model in generate_models(T.Tableau(formulas, entities), []):
         print("Model:", *model.branch_literals, sep="\n  ")
 
 

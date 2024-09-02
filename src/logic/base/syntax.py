@@ -77,7 +77,7 @@ class EConstant(Term):
         # If no name is provided a new constant is instantiated with an id
         # (for automatic constant generation)
         else:
-            self.name = f"_C{EConstant._id}"
+            self.name = f"_O{EConstant._id}"
             EConstant._id += 1
 
     def _get_str(self) -> str:
@@ -542,7 +542,15 @@ class Substitution:
 
     def __call__(self, term: Term) -> Term:
         return self.apply(term)
-    
+
+    def add_update(self, from_: Term, to: Term) -> None:
+        """Add a substitution while preserving the MGU property"""
+        self.inner_dict[from_] = to
+        # Update substitution "a -> from" to "a -> to" to perserve the MGU property
+        for key, value in list(self.inner_dict.items()):
+            if value is from_:
+                self.inner_dict[key] = to
+
     @classmethod
     def merge(cls, *substitutions: "Substitution") -> Optional["Substitution"]:
         """Try to merge together substitutions with the mgu of them"""
