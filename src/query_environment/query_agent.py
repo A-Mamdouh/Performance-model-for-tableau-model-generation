@@ -186,13 +186,6 @@ class Agent:
 
     def add_information(self, tableau: Tableau) -> Optional[Tableau]:
         """Add world knowledge to the agent"""
-        # Attach the last tableau as the parent and set input as the current last tableau
-        # parent = None
-        # if self.knowledge_base:
-        #     parent = self.knowledge_base[-1]
-        # tableau = Tableau.merge(
-        #     tableau, parent=parent
-        # )
         self.knowledge_base.append(tableau)
         # Run DFS to find the next model
         while self._models:
