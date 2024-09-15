@@ -1,14 +1,16 @@
+"""Holds the implementation of the learning agent"""
+
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import torch
-from torch import backends, nn, Tensor
+from torch import nn, Tensor
 
 from src.heuristics.learned_heuristics.deep_learning_models.word_encoder import (
     WordEncoder,
 )
 import src.logic.base.syntax as S
-from src.query_environment.environment import *
+from src.query_environment.environment import get_event_from_atom
 
 
 class WitnessEncoder(nn.Module):
@@ -39,7 +41,7 @@ class HeuristicModel(nn.Module):
 
         def __post_init__(self) -> None:
             if self.accelerated and self.device is None:
-                backends = (torch.cuda, "cuda"), (backends.mps, "mps")
+                backends = (torch.cuda, "cuda"), (torch.backends.mps, "mps")
                 for backend, name in backends:
                     if backend.is_available():
                         self.device = name
@@ -115,18 +117,16 @@ class HeuristicModel(nn.Module):
         literals_by_event = {}
         for literal in literals:
             # Skip non-event formulas
-            args = None
+            event = None
             if isinstance(literal, S.Not):
-                args = literal.formula.args
+                event = get_event_from_atom(literal.formula)
             else:
-                args = literal.args
-            if len(args) != 2:
-                continue
-            event = args[0]
+                event = get_event_from_atom(literal)
             record = literals_by_event.get(event)
             if not record:
                 literals_by_event[event] = record = []
             record.apend(literal)
+        # TODO: Resume here
 
 
 def build_feature_extraction_backbone(

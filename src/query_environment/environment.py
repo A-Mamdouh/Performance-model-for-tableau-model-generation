@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import itertools
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
-from src.logic.base.calculus import generate_models
 from src.logic.base.syntax import (
     AppliedPredicate,
     Constant,
@@ -13,11 +12,8 @@ from src.logic.base.syntax import (
     Predicate,
     Sort,
     Term,
-    is_literal,
 )
 from src.logic.base.tableau import Axiom, Tableau
-from src.query_environment.embeddings import EventInformationManager
-from src.query_environment.learned_heuristic import HeuristicModel
 
 
 class Sorts:
@@ -165,3 +161,10 @@ class Axioms:
         ]
         return output
 
+
+def get_event_from_atom(atom: AppliedPredicate) -> Optional[Term]:
+    """Return True if the input formula atom is an event atom"""
+    events = [term for term in atom.args if term.sort is Sorts.event]
+    if events:
+        return events[0]
+    return None
