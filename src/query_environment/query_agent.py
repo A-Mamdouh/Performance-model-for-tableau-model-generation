@@ -1,6 +1,6 @@
 """Simple knowledge base agent"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 from src.logic.base.calculus import generate_models
@@ -23,7 +23,9 @@ class AgentNode:
     tableau: Tableau
     depth: int
     parent: Optional["AgentNode"] = None
-    event_info_manager: EventInformationManager = EventInformationManager()
+    event_info_manager: EventInformationManager = field(
+        default_factory=EventInformationManager
+    )
 
     @classmethod
     def make_initial(cls) -> "AgentNode":
@@ -34,10 +36,10 @@ class AgentNode:
 class Agent:
     """Logical agent"""
 
-    def __init__(self):
+    def __init__(self, heuristic_model: Optional[HeuristicModel] = None):
         self.knowledge_base: List[Tableau] = []
         self._models: List[AgentNode] = [AgentNode.make_initial()]
-        self.heuristic_model = HeuristicModel(None)
+        self.heuristic_model = heuristic_model or HeuristicModel(None)
 
     def add_information(self, tableau: Tableau) -> Optional[Tableau]:
         """Add world knowledge to the agent"""

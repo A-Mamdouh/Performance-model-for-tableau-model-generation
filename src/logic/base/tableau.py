@@ -193,6 +193,17 @@ class Tableau:
             saliences=leaf.saliences,
         )
 
+    def get_collapsed_tableau(self) -> "Tableau":
+        "Return a copy of the branch merged into one tableau"
+        tableaus = []
+        curr: Tableau = self
+        while curr:
+            curr_copy = curr.copy()
+            curr_copy.parent = None
+            tableaus.append(curr_copy)
+            curr = curr.parent
+        return Tableau.merge(*tableaus)
+
     @property
     def salience_readable(self) -> Dict[str, float]:
         return {str(key):value for key, value in self.saliences.items()}

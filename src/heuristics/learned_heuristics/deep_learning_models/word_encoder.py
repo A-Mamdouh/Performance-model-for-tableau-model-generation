@@ -9,12 +9,13 @@ class WordEncoder:  # pylint: disable=R0903:too-few-public-methods
     """The word encoder produces tensor encodings from text.
     This is used for the learned heuristic agent"""
 
+    word_encoding_length = 768
+
     def __init__(self, device: str = "cuda"):
         self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
         self.model = BertModel.from_pretrained("bert-base-uncased")
         self.model.to(device)
         self.device: str = device
-        self.word_encoding_length = 768
 
     def encode_word(self, word: str) -> torch.Tensor:
         """Return a tensor encoding of the input word"""

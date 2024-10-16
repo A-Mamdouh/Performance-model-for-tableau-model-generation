@@ -1,0 +1,349 @@
+{
+    "annotations": [
+        [
+            {
+                "sentence": "Anna saw dog",
+                "subject": {
+                    "name": "Anna",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "saw",
+                "object_": {
+                    "name": "dog",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "She smiled",
+                "subject": {
+                    "name": "she",
+                    "referent": "Anna",
+                    "is_reference": true
+                },
+                "verb": "smiled",
+                "object_": null,
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Bob saw dog",
+                "subject": {
+                    "name": "Bob",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "saw",
+                "object_": {
+                    "name": "dog",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It barked",
+                "subject": {
+                    "name": "It",
+                    "referent": "dog",
+                    "is_reference": true
+                },
+                "verb": "barked",
+                "object_": null,
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Alexa dropped plate",
+                "subject": {
+                    "name": "Alexa",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "dropped",
+                "object_": {
+                    "name": "plate",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It broke",
+                "subject": {
+                    "name": "It",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "broke",
+                "object_": null,
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Tom threw ball",
+                "subject": {
+                    "name": "Tom",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "threw",
+                "object_": {
+                    "name": "ball",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It bounced",
+                "subject": {
+                    "name": "It",
+                    "referent": "ball",
+                    "is_reference": true
+                },
+                "verb": "bounced",
+                "object_": null,
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Chef flipped pancake",
+                "subject": {
+                    "name": "Chef",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "flipped",
+                "object_": {
+                    "name": "pancake",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It landed",
+                "subject": {
+                    "name": "It",
+                    "referent": "pancake",
+                    "is_reference": true
+                },
+                "verb": "landed",
+                "object_": null,
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Mum baked cake",
+                "subject": {
+                    "name": "Mum",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "baked",
+                "object_": {
+                    "name": "cake",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It tasted good",
+                "subject": {
+                    "name": "It",
+                    "referent": "cake",
+                    "is_reference": true
+                },
+                "verb": "tasted",
+                "object_": null,
+                "adjectives": [
+                    [
+                        "good",
+                        "It"
+                    ]
+                ],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Dad painted wall",
+                "subject": {
+                    "name": "Dad",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "painted",
+                "object_": {
+                    "name": "wall",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It looked green",
+                "subject": {
+                    "name": "It",
+                    "referent": "wall",
+                    "is_reference": true
+                },
+                "verb": "looked",
+                "object_": null,
+                "adjectives": [
+                    [
+                        "green",
+                        "It"
+                    ]
+                ],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Sister read book",
+                "subject": {
+                    "name": "sister",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "read",
+                "object_": {
+                    "name": "book",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It was long",
+                "subject": {
+                    "name": "it",
+                    "referent": "book",
+                    "is_reference": true
+                },
+                "verb": "was",
+                "object_": null,
+                "adjectives": [
+                    [
+                        "long",
+                        "it"
+                    ]
+                ],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Brother fixed bike",
+                "subject": {
+                    "name": "brother",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "fixed",
+                "object_": {
+                    "name": "bike",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It was fast",
+                "subject": {
+                    "name": "it",
+                    "referent": "bike",
+                    "is_reference": true
+                },
+                "verb": "was",
+                "object_": null,
+                "adjectives": [
+                    [
+                        "fast",
+                        "it"
+                    ]
+                ],
+                "is_negated": false,
+                "is_always": false
+            }
+        ],
+        [
+            {
+                "sentence": "Teacher graded test",
+                "subject": {
+                    "name": "Teacher",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "verb": "graded",
+                "object_": {
+                    "name": "test",
+                    "referent": null,
+                    "is_reference": false
+                },
+                "adjectives": [],
+                "is_negated": false,
+                "is_always": false
+            },
+            {
+                "sentence": "It was difficult",
+                "subject": {
+                    "name": "It",
+                    "referent": "test",
+                    "is_reference": true
+                },
+                "verb": "was",
+                "object_": null,
+                "adjectives": [
+                    [
+                        "difficult",
+                        "It"
+                    ]
+                ],
+                "is_negated": false,
+                "is_always": false
+            }
+        ]
+    ]
+}

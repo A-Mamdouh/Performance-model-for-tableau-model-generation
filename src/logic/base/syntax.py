@@ -1,7 +1,7 @@
 """This module implements a syntax base for sorted logic fragments"""
 
 import itertools
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 
@@ -20,8 +20,9 @@ class Sort:
 class Term(ABC):
     """Term productions"""
 
-    def __init__(self, sort: Sort):
+    def __init__(self, sort: Sort, embedding: Optional[Any] = None):
         self.sort = sort
+        self.embedding = embedding
 
     @property
     def _str_(self) -> str:
@@ -164,7 +165,7 @@ class Predicate:
     def __post_init__(self) -> None:
         if self.sorts is not None:
             assert len(self.sorts) == self.arity
-    
+
     @property
     def is_typed(self) -> bool:
         """return true if the predicate has typed arguments"""
@@ -176,7 +177,11 @@ class Predicate:
     def __call__(self, *args: List[Term]) -> "AppliedPredicate":
         if self.sorts is not None:
             # Make sure arguments are properly sorted
-            assert all(itertools.starmap(lambda term, sort: term.sort is sort, zip(args, self.sorts)))
+            assert all(
+                itertools.starmap(
+                    lambda term, sort: term.sort is sort, zip(args, self.sorts)
+                )
+            )
         return AppliedPredicate(self, args)
 
 
@@ -494,7 +499,7 @@ class ExistsF(Not):
         super().__init__(f)
 
     def _get_str(self) -> str:
-        return f"E_{self.formula.variable}:{self.formula.unfocused}.{self.formula.focused.formula}"
+        return f"E_{self.formula.variable}:{self.formula.unfocused}.{self.formula.focused.formula}"  # pylint: disable=E1101:no-member
 
 
 def is_atom(f: Formula) -> bool:

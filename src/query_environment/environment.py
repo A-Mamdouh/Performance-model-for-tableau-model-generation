@@ -1,6 +1,7 @@
 """Environment details"""
 
 from dataclasses import dataclass
+import functools
 import itertools
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
@@ -105,54 +106,45 @@ def noun_verb_sentence(subject: str, verb: Verb) -> Sentence:
 
     return Sentence(str_repr, get_readings)
 
-
-class Axioms:
-    """Environment axioms"""
-
+class AxiomUtils:
     @staticmethod
-    def axiom_only_one_object(tableau: Tableau) -> Tableau | None:
-        """Only one object per event"""
-        return Axioms._only_one_kind_per_event(Predicates.object)(tableau)
+    def only_one_kind_per_event(pred: Predicate) -> Axiom:
+        def decorator(func) -> Callable[[Axiom], Axiom]:
+            functools.wraps(func)
 
-    @staticmethod
-    def axiom_only_one_subject(tableau: Tableau) -> Tableau | None:
-        """Only one object per event"""
-        return Axioms._only_one_kind_per_event(Predicates.subject)(tableau)
+            def axiom(tableau: Tableau) -> Tableau | None:
+                pred_by_event: Dict[Term, List[Tuple]] = {}
+                for literal in tableau.branch_literals:
+                    if not isinstance(literal, AppliedPredicate):
+                        continue
+                    if literal.predicate != pred:
+                        continue
+                    event, *terms = literal.args
+                    equals = pred_by_event.get(event)
+                    if equals is None:
+                        pred_by_event[event] = equals = []
+                    equals.append(terms)
+                # Create equalities between terms
+                f_equalities = set()
+                for applications in pred_by_event.values():
+                    for equal_terms in zip(*applications):
+                        for t1, t2 in itertools.product(equal_terms, equal_terms):
+                            if t1 == t2:
+                                continue
+                            f_equalities.add(Eq(t1, t2))
+                output = tableau.get_unique_tableau(
+                    Tableau(f_equalities, parent=tableau)
+                )
+                if output.formulas:
+                    return output
+                return None
 
-    @staticmethod
-    def axiom_only_one_action(tableau: Tableau) -> Tableau | None:
-        """Only one object per event"""
-        return Axioms._only_one_kind_per_event(Predicates.action)(tableau)
+            return axiom
 
-    @staticmethod
-    def _only_one_kind_per_event(pred: Predicate) -> Axiom:
-        def axiom(tableau: Tableau) -> Tableau | None:
-            pred_by_event: Dict[Term, List[Tuple]] = {}
-            for literal in tableau.branch_literals:
-                if not isinstance(literal, AppliedPredicate):
-                    continue
-                if literal.predicate is not pred:
-                    continue
-                event, *terms = literal.args
-                equals = pred_by_event.get(event)
-                if equals is None:
-                    pred_by_event[event] = equals = []
-                equals.append(terms)
-            # Create equalities between terms
-            f_equalities = set()
-            for applications in pred_by_event.values():
-                for equal_terms in zip(*applications):
-                    for t1, t2 in itertools.product(equal_terms, equal_terms):
-                        if t1 is t2:
-                            continue
-                        f_equalities.add(Eq(t1, t2))
-            output = tableau.get_unique_tableau(Tableau(f_equalities, parent=tableau))
-            if output.formulas:
-                return output
-            return None
+        return decorator
 
-        return axiom
 
+class AxiomsBase:
     @classmethod
     def get_axioms(cls) -> List[Axiom]:
         """Return list of axiom callables"""
@@ -160,6 +152,25 @@ class Axioms:
             value for key, value in cls.__dict__.items() if key.startswith("axiom_")
         ]
         return output
+
+
+class Axioms(AxiomsBase):
+    """Environment axioms"""
+
+    @staticmethod
+    @AxiomUtils.only_one_kind_per_event(Predicates.object)
+    def axiom_only_one_object(tableau: Tableau) -> Tableau | None:
+        """Only one object per event"""
+
+    @staticmethod
+    @AxiomUtils.only_one_kind_per_event(Predicates.subject)
+    def axiom_only_one_subject(tableau: Tableau) -> Tableau | None:
+        """Only one object per event"""
+
+    @staticmethod
+    @AxiomUtils.only_one_kind_per_event(Predicates.action)
+    def axiom_only_one_action(tableau: Tableau) -> Tableau | None:
+        """Only one object per event"""
 
 
 def get_event_from_atom(atom: AppliedPredicate) -> Optional[Term]:
