@@ -2,7 +2,7 @@
     "annotations": [
         [
             {
-                "sentence": "Anna saw dog",
+                "sentence": "Anna saw the dog",
                 "subject": {
                     "name": "Anna",
                     "referent": null,
@@ -10,7 +10,7 @@
                 },
                 "verb": "saw",
                 "object_": {
-                    "name": "dog",
+                    "name": "the dog",
                     "referent": null,
                     "is_reference": false
                 },
@@ -34,7 +34,7 @@
         ],
         [
             {
-                "sentence": "Bob saw dog",
+                "sentence": "Bob saw the dog",
                 "subject": {
                     "name": "Bob",
                     "referent": null,
@@ -42,7 +42,7 @@
                 },
                 "verb": "saw",
                 "object_": {
-                    "name": "dog",
+                    "name": "the dog",
                     "referent": null,
                     "is_reference": false
                 },
@@ -54,7 +54,7 @@
                 "sentence": "It barked",
                 "subject": {
                     "name": "It",
-                    "referent": "dog",
+                    "referent": "the dog",
                     "is_reference": true
                 },
                 "verb": "barked",
@@ -66,7 +66,7 @@
         ],
         [
             {
-                "sentence": "Alexa dropped plate",
+                "sentence": "Alexa dropped the plate",
                 "subject": {
                     "name": "Alexa",
                     "referent": null,
@@ -74,7 +74,7 @@
                 },
                 "verb": "dropped",
                 "object_": {
-                    "name": "plate",
+                    "name": "the plate",
                     "referent": null,
                     "is_reference": false
                 },
@@ -86,8 +86,8 @@
                 "sentence": "It broke",
                 "subject": {
                     "name": "It",
-                    "referent": null,
-                    "is_reference": false
+                    "referent": "the plate",
+                    "is_reference": true
                 },
                 "verb": "broke",
                 "object_": null,
@@ -98,7 +98,7 @@
         ],
         [
             {
-                "sentence": "Tom threw ball",
+                "sentence": "Tom threw the ball",
                 "subject": {
                     "name": "Tom",
                     "referent": null,
@@ -106,7 +106,7 @@
                 },
                 "verb": "threw",
                 "object_": {
-                    "name": "ball",
+                    "name": "the ball",
                     "referent": null,
                     "is_reference": false
                 },
@@ -118,7 +118,7 @@
                 "sentence": "It bounced",
                 "subject": {
                     "name": "It",
-                    "referent": "ball",
+                    "referent": "the ball",
                     "is_reference": true
                 },
                 "verb": "bounced",
@@ -130,7 +130,7 @@
         ],
         [
             {
-                "sentence": "Chef flipped pancake",
+                "sentence": "Chef flipped the pancake",
                 "subject": {
                     "name": "Chef",
                     "referent": null,
@@ -138,7 +138,7 @@
                 },
                 "verb": "flipped",
                 "object_": {
-                    "name": "pancake",
+                    "name": "the pancake",
                     "referent": null,
                     "is_reference": false
                 },
@@ -150,7 +150,7 @@
                 "sentence": "It landed",
                 "subject": {
                     "name": "It",
-                    "referent": "pancake",
+                    "referent": "the pancake",
                     "is_reference": true
                 },
                 "verb": "landed",
@@ -162,7 +162,7 @@
         ],
         [
             {
-                "sentence": "Mum baked cake",
+                "sentence": "Mum baked the cake",
                 "subject": {
                     "name": "Mum",
                     "referent": null,
@@ -170,7 +170,7 @@
                 },
                 "verb": "baked",
                 "object_": {
-                    "name": "cake",
+                    "name": "the cake",
                     "referent": null,
                     "is_reference": false
                 },
@@ -182,7 +182,7 @@
                 "sentence": "It tasted good",
                 "subject": {
                     "name": "It",
-                    "referent": "cake",
+                    "referent": "the cake",
                     "is_reference": true
                 },
                 "verb": "tasted",
@@ -190,7 +190,11 @@
                 "adjectives": [
                     [
                         "good",
-                        "It"
+                        {
+                            "name": "It",
+                            "referent": "the cake",
+                            "is_reference": true
+                        }
                     ]
                 ],
                 "is_negated": false,
@@ -199,7 +203,7 @@
         ],
         [
             {
-                "sentence": "Dad painted wall",
+                "sentence": "Dad painted the wall",
                 "subject": {
                     "name": "Dad",
                     "referent": null,
@@ -207,7 +211,7 @@
                 },
                 "verb": "painted",
                 "object_": {
-                    "name": "wall",
+                    "name": "the wall",
                     "referent": null,
                     "is_reference": false
                 },
@@ -219,7 +223,7 @@
                 "sentence": "It looked green",
                 "subject": {
                     "name": "It",
-                    "referent": "wall",
+                    "referent": "the wall",
                     "is_reference": true
                 },
                 "verb": "looked",
@@ -227,7 +231,11 @@
                 "adjectives": [
                     [
                         "green",
-                        "It"
+                        {
+                            "name": "It",
+                            "referent": "the wall",
+                            "is_reference": true
+                        }
                     ]
                 ],
                 "is_negated": false,
@@ -236,7 +244,7 @@
         ],
         [
             {
-                "sentence": "Sister read book",
+                "sentence": "Sister read the book",
                 "subject": {
                     "name": "sister",
                     "referent": null,
@@ -244,7 +252,7 @@
                 },
                 "verb": "read",
                 "object_": {
-                    "name": "book",
+                    "name": "the book",
                     "referent": null,
                     "is_reference": false
                 },
@@ -256,7 +264,7 @@
                 "sentence": "It was long",
                 "subject": {
                     "name": "it",
-                    "referent": "book",
+                    "referent": "the book",
                     "is_reference": true
                 },
                 "verb": "was",
@@ -264,7 +272,11 @@
                 "adjectives": [
                     [
                         "long",
-                        "it"
+                        {
+                            "name": "It",
+                            "referent": "the book",
+                            "is_reference": true
+                        }
                     ]
                 ],
                 "is_negated": false,
@@ -273,15 +285,15 @@
         ],
         [
             {
-                "sentence": "Brother fixed bike",
+                "sentence": "Charlie fixed the bike",
                 "subject": {
-                    "name": "brother",
+                    "name": "charlie",
                     "referent": null,
                     "is_reference": false
                 },
                 "verb": "fixed",
                 "object_": {
-                    "name": "bike",
+                    "name": "the bike",
                     "referent": null,
                     "is_reference": false
                 },
@@ -293,7 +305,7 @@
                 "sentence": "It was fast",
                 "subject": {
                     "name": "it",
-                    "referent": "bike",
+                    "referent": "the bike",
                     "is_reference": true
                 },
                 "verb": "was",
@@ -301,7 +313,11 @@
                 "adjectives": [
                     [
                         "fast",
-                        "it"
+                        {
+                            "name": "It",
+                            "referent": "the bike",
+                            "is_reference": true
+                        }
                     ]
                 ],
                 "is_negated": false,
@@ -310,7 +326,7 @@
         ],
         [
             {
-                "sentence": "Teacher graded test",
+                "sentence": "Teacher graded the test",
                 "subject": {
                     "name": "Teacher",
                     "referent": null,
@@ -318,7 +334,7 @@
                 },
                 "verb": "graded",
                 "object_": {
-                    "name": "test",
+                    "name": "the test",
                     "referent": null,
                     "is_reference": false
                 },
@@ -330,7 +346,7 @@
                 "sentence": "It was difficult",
                 "subject": {
                     "name": "It",
-                    "referent": "test",
+                    "referent": "the test",
                     "is_reference": true
                 },
                 "verb": "was",
@@ -338,7 +354,11 @@
                 "adjectives": [
                     [
                         "difficult",
-                        "It"
+                        {
+                            "name": "It",
+                            "referent": "test",
+                            "is_reference": true
+                        }
                     ]
                 ],
                 "is_negated": false,

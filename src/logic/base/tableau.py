@@ -193,11 +193,13 @@ class Tableau:
             saliences=leaf.saliences,
         )
 
-    def get_collapsed_tableau(self) -> "Tableau":
-        "Return a copy of the branch merged into one tableau"
+    def collapse(self, until: Optional["Tableau"] = None) -> "Tableau":
+        "Return a copy of the branch merged into one tableau or until the given parent"
         tableaus = []
         curr: Tableau = self
-        while curr:
+        while curr != until:
+            if curr is None:
+                raise ValueError("Passed parent is not a part of the branch")
             curr_copy = curr.copy()
             curr_copy.parent = None
             tableaus.append(curr_copy)

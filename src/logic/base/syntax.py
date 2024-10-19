@@ -90,15 +90,15 @@ class Variable(Term):
 
     _id: int = 0
 
-    def __init__(self, sort: Sort, name: Optional[str] = None):
+    def __init__(self, sort: Sort, name: Optional[str] = None, append_id: bool = False):
         super().__init__(sort)
-        if name is not None:
+        if name is None:
+            self.name = "_V"
+        else:
             assert not name.startswith("_")
             self.name = name
-        # If no name is provided a new variable is instantiated with an id
-        # (for automatic constant generation)
-        else:
-            self.name = f"_V{Variable._id}"
+        if name is None or append_id:
+            self.name += f"_{Variable._id}"
             Variable._id += 1
 
     def _get_str(self) -> str:
